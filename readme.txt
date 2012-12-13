@@ -1,5 +1,5 @@
 === Featured Video Plus ===
-Contributors: ahoereth
+Contributors: a.hoereth
 Plugin Name: Featured Video Plus
 Plugin URI: https://github.com/ahoereth/featured-video-plus
 Tags: featured video, featured, post, video, thumbnail, post thumbnail, image, flash, youtube, vimeo
