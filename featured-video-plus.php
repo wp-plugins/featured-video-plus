@@ -51,10 +51,6 @@ if(  is_admin() ) {
 
 	add_action('admin_notices', array( &$featured_video_plus_backend, 'activation_notification' ) );
 	add_action('admin_init', array( &$featured_video_plus_backend, 'ignore_activation_notification' ) );
-
-	add_action('admin_notices', array( &$featured_video_plus_backend, 'no_featimg_warning' ) );
-	add_action('admin_init', array( &$featured_video_plus_backend, 'no_featimg_warning_callback' ) );
-	add_filter( 'admin_post_thumbnail_html', array( &$featured_video_plus_backend, 'featimg_metabox' ));
 }
 
 
