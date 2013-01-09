@@ -4,7 +4,7 @@ Plugin Name: Featured Video Plus
 Plugin URI: https://github.com/ahoereth/featured-video-plus
 Description: Featured Videos just like Featured Images.
 Author: Alexander Höreth
-Version: 1.1
+Version: 1.2
 Author URI: http://ahoereth.yrnxt.com
 License: GPL2
 
@@ -26,41 +26,61 @@ License: GPL2
 
 */
 
-require_once( plugin_dir_path(__FILE__) . 'php/general.php' );
-require_once( plugin_dir_path(__FILE__) . 'php/backend.php' );
-require_once( plugin_dir_path(__FILE__) . 'php/frontend.php' );
+if (!defined('FVP_VERSION'))
+	define('FVP_VERSION', '1.2');
+
+if (!defined('FVP_NAME'))
+	define('FVP_NAME', 'featured-video-plus');
+	//define('FVP_NAME', trim(dirname(plugin_basename(__FILE__)), '/'));
+
+if (!defined('FVP_DIR'))
+	define('FVP_DIR', plugin_dir_path(__FILE__));
+
+if (!defined('FVP_URL'))
+	define('FVP_URL', WP_PLUGIN_URL . '/' . FVP_NAME);
 
 // init general class, located in php/general.php
+include_once( FVP_DIR . 'php/general.php' );
 $featured_video_plus = new featured_video_plus();
-
-// shortcode
-add_shortcode( 'featured-video-plus', array( &$featured_video_plus, 'shortcode' ) );
 
 // only on backend / administration interface
 if(  is_admin() ) {
+	// plugin upgrade/setup
+	include_once( FVP_DIR . '/php/upgrade.php' );
+	add_action( 'admin_init', 'featured_video_plus_upgrade' );
+
 	// init backend class, located in php/backend.php
+	include_once( FVP_DIR . 'php/backend.php' );
 	$featured_video_plus_backend = new featured_video_plus_backend($featured_video_plus);
 
+	// admin meta box
 	add_action('admin_menu', array( &$featured_video_plus_backend, 'metabox_register' ) );
 	add_action('save_post',  array( &$featured_video_plus_backend, 'metabox_save' )	 );
 
+	// admin settings
 	add_action('admin_init', array( &$featured_video_plus_backend, 'settings_init' ) );
 
-	// enqueue scripts and styles
-	add_action( 'admin_enqueue_scripts', array( &$featured_video_plus_backend, 'enqueue' ) );
+	// enqueue admin scripts and styles
+	add_action('admin_enqueue_scripts', array( &$featured_video_plus_backend, 'enqueue' ) );
+	add_action('admin_enqueue_scripts', array( &$featured_video_plus, 'enqueue' ) );
 
-	add_action('admin_notices', array( &$featured_video_plus_backend, 'activation_notification' ) );
-	add_action('admin_init', array( &$featured_video_plus_backend, 'ignore_activation_notification' ) );
+	// link to media settings on plugins overview
+	add_filter('plugin_action_links', array( &$featured_video_plus_backend, 'plugin_action_link' ), 10, 2);
+
+	// add upload mime types for HTML5 videos
+	add_filter('upload_mimes', array( &$featured_video_plus_backend, 'add_upload_mimes' ) );
 }
 
 
 // only on frontend / page
 if( !is_admin() ) {
 	// init frontend class, located in php/frontend.php
+	include_once( FVP_DIR . 'php/frontend.php' );
 	$featured_video_plus_frontend = new featured_video_plus_frontend($featured_video_plus);
 
 	// enqueue scripts and styles
 	add_action( 'wp_enqueue_scripts', array( &$featured_video_plus_frontend, 'enqueue' ) );
+	add_action( 'wp_enqueue_scripts', array( &$featured_video_plus, 'enqueue' ) );
 
 	// filter get_post_thumbnail output
 	add_filter('post_thumbnail_html', array( &$featured_video_plus_frontend, 'filter_post_thumbnail'), 99, 5);
@@ -85,9 +105,7 @@ if( !is_admin() ) {
 	}
 }
 
-
-include_once( dirname( __FILE__ ) . '/php/setup.php' );
-register_activation_hook( 	 WP_PLUGIN_DIR . '/featured-video-plus/featured-video-plus.php', array( 'featured_video_plus_setup', 'on_activate' ) );
-register_uninstall_hook( 	 WP_PLUGIN_DIR . '/featured-video-plus/featured-video-plus.php', array( 'featured_video_plus_setup', 'on_uninstall' ) );
+// shortcode
+add_shortcode( 'featured-video-plus', array( &$featured_video_plus, 'shortcode' ) );
 
 ?>
