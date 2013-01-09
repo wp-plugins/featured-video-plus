@@ -29,12 +29,12 @@ Beside your __Local Videos__ (mp4, webM & ogg/ogv) you can use __YouTube__ (w/[t
 
 The plugin adds some individualization options to your Media Settings. Beside aesthetic customizations you can turn off automatic integration and tweak some technical settings.
 
-=Shortcode:=
+= Shortcode =
 
 	[featured-video-plus]
 	[featured-video-plus width=300]
 
-=PHP functions:=
+= PHP functions =
 
 	the_post_video(array(width, height), fullscreen = true)
 	has_post_video(post_id)
