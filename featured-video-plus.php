@@ -4,7 +4,7 @@ Plugin Name: Featured Video Plus
 Plugin URI: https://github.com/ahoereth/featured-video-plus
 Description: Featured Videos just like Featured Images.
 Author: Alexander Höreth
-Version: 1.2
+Version: 1.3
 Author URI: http://ahoereth.yrnxt.com
 License: GPL2
 
@@ -27,27 +27,32 @@ License: GPL2
 */
 
 if (!defined('FVP_VERSION'))
-	define('FVP_VERSION', '1.2');
+	define('FVP_VERSION', '1.3');
 
+// symlink proof
+$pathinfo = pathinfo(dirname(plugin_basename(__FILE__)));
 if (!defined('FVP_NAME'))
-	define('FVP_NAME', 'featured-video-plus');
-	//define('FVP_NAME', trim(dirname(plugin_basename(__FILE__)), '/'));
+	define('FVP_NAME', $pathinfo['filename']);
 
 if (!defined('FVP_DIR'))
 	define('FVP_DIR', plugin_dir_path(__FILE__));
 
 if (!defined('FVP_URL'))
-	define('FVP_URL', WP_PLUGIN_URL . '/' . FVP_NAME);
+	define('FVP_URL', plugins_url(FVP_NAME) . '/'); //
 
 // init general class, located in php/general.php
 include_once( FVP_DIR . 'php/general.php' );
 $featured_video_plus = new featured_video_plus();
+
+// init translations
+add_action( 'plugins_loaded', array( &$featured_video_plus, 'language' ) );
 
 // only on backend / administration interface
 if(  is_admin() ) {
 	// plugin upgrade/setup
 	include_once( FVP_DIR . '/php/upgrade.php' );
 	add_action( 'admin_init', 'featured_video_plus_upgrade' );
+
 
 	// init backend class, located in php/backend.php
 	include_once( FVP_DIR . 'php/backend.php' );
@@ -56,9 +61,6 @@ if(  is_admin() ) {
 	// admin meta box
 	add_action('admin_menu', array( &$featured_video_plus_backend, 'metabox_register' ) );
 	add_action('save_post',  array( &$featured_video_plus_backend, 'metabox_save' )	 );
-
-	// admin settings
-	add_action('admin_init', array( &$featured_video_plus_backend, 'settings_init' ) );
 
 	// enqueue admin scripts and styles
 	add_action('admin_enqueue_scripts', array( &$featured_video_plus_backend, 'enqueue' ) );
@@ -69,6 +71,23 @@ if(  is_admin() ) {
 
 	// add upload mime types for HTML5 videos
 	add_filter('upload_mimes', array( &$featured_video_plus_backend, 'add_upload_mimes' ) );
+
+	// post edit help
+	add_action('admin_init', array( &$featured_video_plus_backend, 'help' ) );
+	add_action( 'load-post.php', array( &$featured_video_plus_backend, 'tabs' ), 20 ); // $GLOBALS['pagenow']
+	if( get_bloginfo('version') < 3.3 )
+		add_filter( 'contextual_help', array( &$featured_video_plus_backend, 'help_pre_33' ), 10, 3 );
+
+	// admin settings
+	include_once( FVP_DIR . 'php/settings.php' );
+	$featured_video_plus_settings = new featured_video_plus_settings();
+	add_action( 'admin_init', array( &$featured_video_plus_settings, 'settings_init' ) );
+
+	// media settings help
+	add_action('admin_init', array( &$featured_video_plus_settings, 'help' ) );
+	add_action( 'load-options-media.php', array( &$featured_video_plus_settings, 'tabs' ), 20 ); // $GLOBALS['pagenow']
+	if( get_bloginfo('version') < 3.3 )
+		add_filter( 'contextual_help', array( &$featured_video_plus_settings, 'help_pre_33' ), 10, 3 );
 }
 
 
@@ -88,14 +107,14 @@ if( !is_admin() ) {
 
 	// functions which are available to theme developers follow here:
 	// echos the current posts featured video
-	function the_post_video($width = '560', $height = '315', $allowfullscreen = true) {
-		echo get_the_post_video(null, $width, $height, $allowfullscreen, true);
+	function the_post_video( $size = null) {
+		echo get_the_post_video(null, $size);
 	}
 
 	// returns the posts featured video
-	function get_the_post_video($post_id = null, $width = '560', $height = '315', $allowfullscreen = true) {
+	function get_the_post_video($post_id = null, $size = null) {
 		global $featured_video_plus;
-		return $featured_video_plus->get_the_post_video($post_id, $width, $height, $allowfullscreen);
+		return $featured_video_plus->get_the_post_video($post_id, $size);
 	}
 
 	// checks if post has a featured video

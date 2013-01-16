@@ -14,6 +14,8 @@ class featured_video_plus_backend {
 	private $featured_video_plus;
 	private $default_value;
 	private $default_value_sec;
+	private $help_localmedia;
+	private $help_urls;
 
 	/**
 	 * Creates a new instace of this class, saves the featured_video_instance and default value for the meta box input.
@@ -27,8 +29,8 @@ class featured_video_plus_backend {
 			wp_die( 'featured_video_plus general instance required!', 'Error!' );
 
 		$this->featured_video_plus 	= $featured_video_plus_instance;
-		$this->default_value 		= 'YouTube, Vimeo, Dailymotion; Local Media';
-		$this->default_value_sec 	= 'Fallback: same video, different format';
+		$this->default_value 		= __('Video URL', 'featured-video-plus');
+		$this->default_value_sec 	= __('Fallback: same video, different format', 'featured-video-plus');
 	}
 
 	/**
@@ -46,20 +48,21 @@ class featured_video_plus_backend {
 			if( wp_style_is( 'wp-color-picker', 'registered' ) ) {
 				// >=WP3.5
 				wp_enqueue_style( 'wp-color-picker' );
-				wp_enqueue_script( 'fvp_backend_35', FVP_URL . '/js/backend_35.js', array( 'wp-color-picker', 'jquery' ) );
+				wp_enqueue_script( 'fvp_backend_35', FVP_URL . 'js/backend_35.js', array( 'wp-color-picker', 'jquery' ), FVP_VERSION );
 			} else {
 				// <WP3.5, fallback for the new WordPress Color Picker which was added in 3.5
 				wp_enqueue_style( 'farbtastic' );
 				wp_enqueue_script( 'farbtastic' );
-				wp_enqueue_script( 'fvp_backend_pre35', FVP_URL . '/js/backend_pre35.js', array( 'jquery' ) );
+				wp_enqueue_script( 'fvp_backend_pre35', FVP_URL . 'js/backend_pre35.js', array( 'jquery' ), FVP_VERSION );
 			}
+			wp_enqueue_script( 'fvp_backend_settings', FVP_URL . 'js/backend_settings.js', array( 'jquery' ), FVP_VERSION );
 		}
 
 		// just required on post.php
 		if($hook_suffix == 'post.php' && isset($_GET['post']) ) {
-			wp_enqueue_script( 'jquery.autosize', FVP_URL . '/js/jquery.autosize-min.js', array( 'jquery' ) );
-			wp_enqueue_script( 'fvp_backend', FVP_URL . '/js/backend-min.js', array( 'jquery','jquery.autosize' ) ); 	// production
-			//wp_enqueue_script( 'fvp_backend', FVP_URL . '/js/backend.js', array( 'jquery','jquery.autosize' ) ); 		// development
+			wp_enqueue_script( 'jquery.autosize', FVP_URL . 'js/jquery.autosize-min.js', array( 'jquery' ), FVP_VERSION );
+			wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend-min.js', array( 'jquery','jquery.autosize' ), FVP_VERSION ); 	// production
+			//wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend.js', array( 'jquery','jquery.autosize'), FVP_VERSION ); 		// development
 
 			$upload_dir = wp_upload_dir();
 			wp_localize_script( 'fvp_backend', 'fvp_backend_data', array(
@@ -69,8 +72,8 @@ class featured_video_plus_backend {
 			) );
 		}
 
-		wp_enqueue_style( 'fvp_backend', FVP_URL . '/css/backend-min.css' ); 	// production
-		//wp_enqueue_style( 'fvp_backend', FVP_URL . '/css/backend.css' ); 		// development
+		wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend-min.css', array(), FVP_VERSION ); 	// production
+		//wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend.css', array(), FVP_VERSION ); 		// development
 	}
 
 	/**
@@ -82,7 +85,7 @@ class featured_video_plus_backend {
 		$post_types = get_post_types(array("public" => true));
 		foreach ($post_types as $post_type) {
 			if($post_type != 'attachment')
-				add_meta_box("featured_video_plus-box", 'Featured Video', array( &$this, 'metabox_content' ), $post_type, 'side', 'core');
+				add_meta_box("featured_video_plus-box", __('Featured Video', 'featured-video-plus'), array( &$this, 'metabox_content' ), $post_type, 'side', 'core');
 		}
 	}
 
@@ -106,50 +109,57 @@ class featured_video_plus_backend {
 		$featimg_is_fvp = empty($tmp2) ? false : true;
 		$has_post_video = $this->featured_video_plus->has_post_video($post_id);
 
+		$options = get_option( 'fvp-settings' );
 		$meta = unserialize( get_post_meta($post_id, '_fvp_video', true) );
 
 		echo "\n\n\n<!-- Featured Video Plus Metabox -->\n";
+
+		// WordPress Version not supported error
+		if( get_bloginfo('version') < 3.1 )
+			printf ('<div class="fvp_warning"><p class="description"><strong>'.__('Outdated WordPress Version', 'featured-video-plus').':</strong>&nbsp'.__('There is WordPress 3.5 out there! The plugin supports older versions way back to 3.1 - but %s is defenitly to old!', 'featured-video-plus').'</p></div>', get_bloginfo('version') );
+
 		// displays the current featured video
 		if( $has_post_video )
-			echo '<div id="featured_video_preview" class="featured_video_plus" style="display:block">' . $this->featured_video_plus->get_the_post_video( $post_id, array(256,144) ) . "</div>\n";
+			echo $this->featured_video_plus->get_the_post_video( $post_id, array(256,144) );
 
 		// input box containing the featured video URL
 		$full = isset($meta['full']) ? $meta['full'] : $this->default_value;
-		echo '<textarea class="fvp_input" id="fvp_video" name="fvp_video" type="text" title="' . $this->default_value . '" />' . $full . '</textarea>' . "\n";
+		$legal= isset($meta['valid']) && !$meta['valid'] ? ' fvp_invalid' : '';
+		echo '<textarea class="fvp_input'.$legal.'" id="fvp_video" name="fvp_video" type="text" title="' . $this->default_value . '" />' . $full . '</textarea>' . "\n";
 
 		$sec = isset($meta['sec']) ? $meta['sec'] : $this->default_value_sec;
 		echo '<textarea class="fvp_input" id="fvp_sec" name="fvp_sec" type="text" title="' . $this->default_value_sec . '" />' . $sec . '</textarea>' . "\n";
 
 		// local video format warning
 		echo '<div id="fvp_localvideo_format_warning" class="fvp_warning fvp_hidden">'."\n\t".'<p class="description">'."\n\t\t";
-		echo '<span style="font-weight: bold;">Supported Video Formats:</span> <code>mp4</code>, <code>webM</code> or <code>ogg/ogv</code>. <a href="http://wordpress.org/extend/plugins/featured-video-plus/faq/">More information</a>.';
+		echo '<span style="font-weight: bold;">'.__('Supported Video Formats', 'featured-video-plus').':</span> <code>mp4</code>, <code>webM</code> '.__('or', 'featured-video-plus').' <code>ogg/ogv</code>. <a href="http://wordpress.org/extend/plugins/featured-video-plus/faq/">'.__('More information', 'featured-video-plus').'</a>.';
 		echo "\n\t</p>\n</div>\n";
 
 		// local videos not distinct warning
 		echo '<div id="fvp_localvideo_notdistinct_warning" class="fvp_warning fvp_hidden">'."\n\t".'<p class="description">'."\n\t\t";
-		echo '<span style="font-weight: bold;">Fallback Video:</span> The two input fields should contain the same video but in distinct formats.';
+		echo '<span style="font-weight: bold;">'.__('Fallback Video', 'featured-video-plus').':</span>&nbsp;'.__('The two input fields should contain the same video but in distinct formats.', 'featured-video-plus');
 		echo "\n\t</p>\n</div>\n";
 
-		// how to use a local video notice
-		$class 		= (isset($meta['prov']) && $meta['prov'] != 'local') || (isset($meta['sec']) && !empty($meta['sec'])) ? ' fvp_hidden' : '' ;
-		$mediahref 	= (get_bloginfo('version') >= 3.5) ? '<a href="#" class="insert-media" title="Add Media">' : '<a href="media-upload.php?post_id=4&amp;type=video&amp;TB_iframe=1&amp;width=640&amp;height=207" id="add_video" class="thickbox" title="Add Video">';
-		$urllabel 	= (get_bloginfo('version') >= 3.5) ? 'Link To Media File' : 'File URL';
-		echo "<div id=\"fvp_localvideo_notice\" class=\"fvp_notice".$class."\">\n\t<p class=\"description\">\n\t\t";
-		echo '<span style="font-weight: bold;">Local Media:</span> Use the <code>' . $urllabel . '</code> from your '. $mediahref . 'Media Library</a>.';
+		// how to use a local videos notice
+		$wrap  = get_bloginfo('version') >= 3.3 ? '-wrap' : '';
+		$class = isset($meta['full']) && !empty($meta['full']) && isset($meta['valid']) && $meta['valid'] ? ' fvp_hidden' : '';
+		echo "<div id=\"fvp_help_notice\" class=\"fvp_notice".$class."\">\n\t<p class=\"description\">\n\t\t";
+		echo '<span style="font-weight: bold;">'.__('Hint', 'featured-video-plus').':</span>&nbsp;'.sprintf(__('Take a look into the %sContextual Help%s.', 'featured-video-plus'), '<a href="#contextual-help'.$wrap.'" id="fvp_help_toggle">', '</a>');
 		echo "\n\t</p>\n</div>\n";
 
 		// no featured image warning
-		$fvp_settings = get_option( 'fvp-settings' );
-		$class = $has_featimg || !$has_post_video || (isset($fvp_settings['overwrite']) && !$fvp_settings['overwrite']) ? ' fvp_hidden' : '';
+		$class = $has_featimg || !$has_post_video || (isset($options['overwrite']) && !$options['overwrite']) ? ' fvp_hidden' : '';
 		echo '<div id="fvp_featimg_warning" class="fvp_notice'.$class.'">'."\n\t".'<p class="description">';
-		echo '<span style="font-weight: bold;">Featured Image:</span> For automatically displaying the Featured Video a Featured Image is required.';
+		echo '<span style="font-weight: bold;">Featured Image:</span>&nbsp;'.__('For automatically displaying the Featured Video a Featured Image is required.', 'featured-video-plus');
 		echo "</p>\n</div>\n";
 
 		// set as featured image
 		$class = $meta['prov'] == 'local' || !$has_post_video || ($has_featimg && $featimg_is_fvp) ? ' class="fvp_hidden"' : '';
-		$text  = 'Set as Featured Image';
-		echo '<p id="fvp_set_featimg_box"'.$class.'>'."\n\t".'<span id="fvp_set_featimg_input">'."\n\t\t".'<input id="fvp_set_featimg" name="fvp_set_featimg" type="checkbox" value="set_featimg" />'."\n\t\t".'<label for="fvp_set_featimg">&nbsp;'.$text.'</label>'."\n\t".'</span>'."\n";
-		echo "\t".'<a style="display: none;" id="fvp_set_featimg_link" href="#">'.$text.'</a>'."\n".'</p>'."\n";
+		printf('<p id="fvp_set_featimg_box"'.$class.'>'."\n\t".'<span id="fvp_set_featimg_input">'."\n\t\t".'<input id="fvp_set_featimg" name="fvp_set_featimg" type="checkbox" value="set_featimg" />'."\n\t\t".'<label for="fvp_set_featimg">&nbsp;%s</label>'."\n\t".'</span>'."\n\t".'<a style="display: none;" id="fvp_set_featimg_link" href="#">%s</a>'."\n".'</p>'."\n", __('Set as Featured Image', 'featured-video-plus'), __('Set as Featured Image', 'featured-video-plus') );
+
+		// current theme does not support Featured Images
+		if( !current_theme_supports('post-thumbnails') && $options['overwrite'] )
+			echo '<p class="fvp_warning description"><span style="font-weight: bold;">'.__('The current theme does not support Featured Images', 'featured-video-plus').':</span>&nbsp;'.sprintf(__('To display Featured Videos you need to use the <code>Shortcode</code> or <code>PHP functions</code>. To hide this notice deactivate &quot;<em>Replace Featured Images</em>&quot; in the %sMedia Settings%s.', 'featured-video-plus'), '<a href="'.get_admin_url(null, '/options-media.php').'">', '</a>' )."</p>\n\n";
 
 		echo "<!-- Featured Video Plus Metabox End-->\n\n\n";
 	}
@@ -178,13 +188,13 @@ class featured_video_plus_backend {
 		} else {
 			$set_featimg = isset($_POST['fvp_set_featimg']) && !empty($_POST['fvp_set_featimg']) ? true : $set_featimg;
 
-			if( !isset($_POST['fvp_video']) && isset( $meta ) )
-				$video = $meta['full'];
+			if( !isset($_POST['fvp_video']) || $_POST['fvp_video'] == $this->default_value )
+				$video = '';
 			else
 				$video = trim($_POST['fvp_video']);
 		}
 
-		$sec = isset($_POST['fvp_sec']) && !empty($_POST['fvp_sec']) ? trim($_POST['fvp_sec']) : '';
+		$sec = isset($_POST['fvp_sec']) && !empty($_POST['fvp_sec']) && $_POST['fvp_sec'] != $this->default_value_sec ? trim($_POST['fvp_sec']) : '';
 
 		// something changed
 		if( ( empty($video) ) || 							// no video or
@@ -225,27 +235,13 @@ class featured_video_plus_backend {
 
 /*
 REGEX tested using: http://www.rubular.com/
-
-Tested URLs:
-http://youtu.be/G_Oj7UI0-pw
-https://youtu.be/G_Oj7UI0-pw
-http://vimeo.com/32071937
-https://vimeo.com/32071937
-http://vimeo.com/32071937#embed
-http://youtu.be/9Tjg6V1Eoz4?t=2m29s
-http://www.youtube.com/watch?v=9Tjg6V1Eoz4&t=2m29s
-http://www.youtube.com/watch?v=G_Oj7UI0-pw
-http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 */
 
 		$local = wp_upload_dir();
-		// match 		different provider(!)
-
-		preg_match('/(vimeo|youtu|dailymotion|' . preg_quote($local['baseurl'], '/') . ')/i', $video, $video_provider);
-		if(!isset($video_provider[1]))
-			return;
-
-		$video_prov = $video_provider[1] == "youtu" ? "youtube" : $video_provider[1];
+		preg_match('/(vimeo|youtu|dailymotion|liveleak|' . preg_quote($local['baseurl'], '/') . ')/i', $video, $video_provider);
+		if( isset($video_provider[1]) )
+			$video_prov = $video_provider[1];
+		else $video_prov = '';
 
 		switch ($video_prov) {
 
@@ -267,18 +263,28 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 
 				break;
 
+			case 'youtu':
+				$video_prov = 'youtube';
+
 			case 'youtube':
 				//match			provider				watch		feature							id(!)					attr(!)
-				preg_match('/youtu(?:be\.com|\.be)\/(?:watch)?(?:\?feature=[^\?&]*)*(?:[\?&]v=)?([^\?&\s]+)(?:(?:[&\?]t=)(\d+m\d+s))?/', $video, $video_data);
+				//preg_match('/youtu(?:be\.com|\.be)\/(?:watch)?(?:\?feature=[^\?&]*)*(?:[\?&]v=)?([^\?&\s]+)(?:(?:[&\?]t=)((?:\d+m)?\d+s))?/', $video, $video_data);
+
+				$pattern = '#(?:https?\:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})(?:(?:\?|&)?(?:.*)(?:t=)((?:\d+m)?\d+s))?.*#x';
+				preg_match($pattern, $video, $video_data);
+				if( !isset($video_data[1]) )
+					break;
+
+				$response = wp_remote_get( 'http://youtube.com/get_video_info?video_id=' . $video_data[1] );
+				if( is_wp_error( $response ) )
+					break;
+				parse_str( $response['body'], $data );
+				if( isset($data['status']) && $data['status'] == 'fail' )
+					break;
+
 				$video_id = $video_data[1];
 				if( isset($video_data[2] ) )
 					$video_attr = $video_data[2];
-
-				// title, allow_embed 0/1, keywords, author, iurlmaxres, thumbnail_url, timestamp, avg_rating
-				$tmp = download_url( 'http://youtube.com/get_video_info?video_id=' . $video_id );
-				$data = file_get_contents($tmp);
-				parse_str($data, $data);
-				@unlink( $tmp );
 
 				// generate video metadata
 				$video_info = array(
@@ -293,19 +299,17 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 				break;
 
 			case 'vimeo': // http://developer.vimeo.com/apis/simple
-				preg_match('/vimeo.com\/([^#]+)/', $video, $video_data);
+				//preg_match('/vimeo.com\/([^#]+)/', $video, $video_data);
+
+				$pattern = '#(?:https?://)?(?:\w+.)?vimeo.com/(?:video/|moogaloop\.swf\?clip_id=)?(\w+)#x';
+				preg_match($pattern, $video, $video_data);
 				$video_id = $video_data[1];
 
 				// title, description, upload_date, thumbnail_large, user_name, tags
-				$url = 'http://vimeo.com/api/v2/video/' . $video_id . '.php';
-
-				if( ini_get('allow_url_fopen') )
-					$data = unserialize(file_get_contents( $url ));
-				if( !isset( $data ) || empty( $data ) ) {
-					$tmp = download_url( $url );
-					$data = unserialize(file_get_contents($tmp));
-					@unlink( $tmp );
-				}
+				$response = wp_remote_get( 'http://vimeo.com/api/v2/video/' . $video_id . '.php' );
+				if( is_wp_error( $response ) || (isset($response['response']['code']) && $response['response']['code'] == '404') )
+					break;
+				$data = unserialize( $response['body'] );
 
 				// generate video metadata
 				$video_info = array(
@@ -321,15 +325,22 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 				break;
 
 			case 'dailymotion': // http://www.dailymotion.com/doc/api/obj-video.html
-				preg_match('/dailymotion.com\/video\/([^_]+)/', $video, $video_data);
-				$video_id = $video_data[1];
+				preg_match('/dailymotion.com\/video\/([^_#]+)/', $video, $video_data);
+				if( !isset($video_data[1]) )
+					break;
 
 				// http://codex.wordpress.org/HTTP_API
 				//thumbnail_url,aspect_ratio,description,created_time,embed_url,owner (owner.screenname),tags,title,url
-				$url = 'https://api.dailymotion.com/video/'.$video_id.'?fields=title,description,created_time,owner.screenname,tags,thumbnail_url,thumbnail_large_url,url,aspect_ratio';
+				$url = 'https://api.dailymotion.com/video/'.$video_data[1].'?fields=title,description,created_time,owner.screenname,tags,thumbnail_url,thumbnail_large_url,url,aspect_ratio';
 				$request = new WP_Http;
 				$result = $request->request( $url, array( 'method' => 'GET', 'sslverify' => false) );
+				if( is_wp_error($result) )
+					break;
 				$data = json_decode($result['body'], true);
+				if( !isset($data) || (isset($data['error']['code']) && ($data['error']['code'] == 501 || $data['error']['code'] == 400) ) )
+					break;
+
+				$video_id = $video_data[1];
 
 				// generate video metadata
 				$video_info = array(
@@ -343,13 +354,62 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 					'url' => $data['url']
 				);
 				break;
+
+			case 'liveleak': // view-source:http://www.liveleak.com/view?i=45f_1358105976&ajax=1
+				preg_match('/(?:http:\/\/)?(?:www\.)?liveleak.com\/view\?i=([\d\w]{3}_\d{10})/', $video, $video_data);
+				if( !isset($video_data[1]) )
+					break;
+
+				$response = wp_remote_get( 'http://liveleak.com/view?i='.$video_data[1].'&ajax=1');
+				if( is_wp_error( $response ) )
+					break;
+
+				preg_match('#jwplayer\("player_([\d\w]{12})[\d\w]{2}"\)\.setup\({([^}}\))]+)#', $response['body'], $llmeta);
+				if( isset($llmeta[1]) || isset($llmeta[2]) ) {
+
+					$video_id = $llmeta[1];
+
+					$llmeta = explode(',', $llmeta[2]);
+					foreach( $llmeta as $line ) {
+						$thisline = explode(': ', $line);
+						$data[trim($thisline[0])] = trim($thisline[1]);
+					}
+
+					preg_match('#class="section_title".*>([\s\w]+)</span>#', $response['body'], $title);
+					preg_match('#id="body_text".*><p>(.*)<\/p><\/#', $response['body'], $desc);
+					$data['title'] = isset($title[1]) ? $title[1] : '';
+
+					$video_info = array(
+						'title' 		=> $data['title'],
+						'description' 	=> isset($desc[1]) ? $desc[1] : '',
+						'filename' 		=> sanitize_file_name($data['title']),
+						'timestamp' 	=> time(),
+						'author' 		=> '', // <strong>By:</strong> <a href="http://www.liveleak.com/c/k-doe">k-doe</a>
+						'tags' 			=> '', // <strong>Tags:</strong> <a href="browse?q=Drive By">Drive By</a>, <a href="browse?q=Fire Extinguisher">Fire Extinguisher</a><br />
+						'img' 			=> trim($data['image'],"\""),
+						'url' 			=> 'http://liveleak.com/view?i='.$video_data[1]
+					);
+					break;
+				}
+				$video_prov = 'prochan';
+				$type = 'iframe';
+
+				case 'prochan':
+					if($type == 'iframe') {
+						preg_match('#<iframe.*src="(?:http://)?(?:www\.)?prochan.com/embed\?f=([\d\w]{3}_\d{10})".*></iframe>#', $response['body'], $proframe);
+						if( !isset($proframe[1]) )
+							break;
+						$video_id = $proframe[1];
+					}
+					break;
 		}
 
+		$valid = true;
 		if( !isset($video_id) )
-			return;
+			$valid = false;
 
 		// do we have a screen capture to pull?
-		if( !empty($video_info['img']) ) {
+		if( isset($video_info['img']) && !empty($video_info['img']) ) {
 
 			// is this screen capture already existing in our media library?
 			$video_img = $this->get_post_by_custom_meta('_fvp_image', $video_prov . '?' . $video_id);
@@ -394,14 +454,14 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 		}
 
 		$meta = array(
-			'full' => ( isset($data['url']) && !empty($data['url']) ) ? $data['url'] : $video,
-			'id' => $video_id,
-			'sec' => $sec,
-			'sec_id' => ( isset($video_sec_id) && !empty($video_sec_id) ) ? $video_sec_id : '',
-			'img' => isset($video_img) ? $video_img : '',
-			'prov' => $video_prov,
-			'attr' => isset($video_attr) ? $video_attr : '',
-			'warn_featimg' => true
+			'full' 	=> ( isset($data['url']) && !empty($data['url']) ) ? $data['url'] : $video,
+			'id' 	=> isset($video_id) ? $video_id : '',
+			'sec' 	=> isset($sec) ? $sec : '',
+			'sec_id'=> ( isset($video_sec_id) && !empty($video_sec_id) ) ? $video_sec_id : '',
+			'img' 	=> isset($video_img) ? $video_img : '',
+			'prov' 	=> isset($video_prov) ? $video_prov : '',
+			'attr' 	=> isset($video_attr) ? $video_attr : '',
+			'valid' => $valid
 		);
 
 		update_post_meta( $post_id, '_fvp_video', serialize($meta) );
@@ -410,175 +470,95 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 	}
 
 	/**
-	 * Initialises the plugin settings section, the settings fields and registers the options field and save function.
+	 * Initializes the help texts.
 	 *
-	 * @see http://codex.wordpress.org/Settings_API
-	 * @since 1.0
+	 * @since 1.3
 	 */
-	function settings_init() {
-		add_settings_section('fvp-settings-section', 	'Featured Video', 			array( &$this, 'settings_content' ), 		'media');
+	public function help() {
+		$mediahref 	= (get_bloginfo('version') >= 3.5) ? '<a href="#" class="insert-media" title="Add Media">' : '<a href="media-upload.php?post_id=4&amp;type=video&amp;TB_iframe=1&amp;width=640&amp;height=207" id="add_video" class="thickbox" title="Add Video">';
+		$general 	= (get_bloginfo('version') >= 3.5) ? sprintf( __('To use local videos, copy the <code>Link To Media File</code> from your %sMedia Library%s and paste it into the text field.', 'featured-video-plus'), $mediahref, '</a>' ) :
+														 sprintf( __('To use local videos, copy the <code>File URL</code> from your %sMedia Library%s and paste it into the text field.', 			 'featured-video-plus'), $mediahref, '</a>' );
 
-		add_settings_field('fvp-settings-overwrite', 	'Replace featured images', 	array( &$this, 'settings_overwrite' ), 		'media', 'fvp-settings-section');
-		add_settings_field('fvp-settings-width', 		'Video width', 				array( &$this, 'settings_width' ), 			'media', 'fvp-settings-section');
-		add_settings_field('fvp-settings-height', 		'Video height', 			array( &$this, 'settings_height' ), 		'media', 'fvp-settings-section');
-		add_settings_field('fvp-settings-vimeo', 		'Vimeo Player Design', 		array( &$this, 'settings_vimeo' ), 			'media', 'fvp-settings-section');
-		add_settings_field('fvp-settings-rate', 		'Support', 					array( &$this, 'settings_rate' ), 			'media', 'fvp-settings-section');
+		$this->help_localmedia = '
+<h4 style="margin-bottom: 0;"></h4>
+<p>'.$general.'&nbsp;'.__('The second text field is intended to hold the URL to the same video in a different format. It will be used as fallback if the primary file can not be played.','featured-video-plus').'&nbsp;<a href="http://videojs.com/#section4" target="_blank">'.__('More information','featured-video-plus').'</a>.</p>
+<h4 style="margin-bottom: 0;">'.__('Supported Video Formats','featured-video-plus').':</h4>
+<p style="margin-top: 0;"><code>webM</code>, <code>mp4</code>, <code>ogg/ogv</code></p>
+<h4 style="margin-bottom: 0;">'.__('Converting your videos','featured-video-plus').':</h4>
+<p style="margin-top: 0;">'.sprintf(__('Take a look at the %sMiro Video Converter%s. It is open source, lightweight and compatible with Windows, Mac and Linux.','featured-video-plus'),'<a href="http://www.mirovideoconverter.com/" target="_blank">','</a>').'</p>
+<h4 style="margin-bottom: 0;">'.__('Fixing upload errors','featured-video-plus').':</h4>
+<ul style="margin-top: 0;">
+<li>'.sprintf(__('Read %sthis%s on how to increase the <strong>maximum file upload size</strong>.','featured-video-plus'),'<a href="http://www.wpbeginner.com/wp-tutorials/how-to-increase-the-maximum-file-upload-size-in-wordpress/" target="_blank">','</a>').'</li>
+<li>'.sprintf(__('WordPress by default does not support <code>webM</code>. The plugin activates it, but under some conditions this might not be enough. %sHere%s you can get more information on this.','featured-video-plus'),'<a href="http://ottopress.com/2011/howto-html5-video-that-works-almost-everywhere/" target="_blank">','</a>').'</li>
+</ul>
+<h4 style="margin-bottom: 0;">'.__('Flash Fallback','featured-video-plus').':</h4>
+<p style="margin-top: 0;">'.sprintf(__('The video player, %sVIDEOJS%s, features an Adobe Flash fallback. All you need to do is provide an <code>mp4</code>-video.', 'featured-video-plus'),'<a href="http://videojs.com/" target="_blank">','</a>')."</p>\n";
 
-		register_setting('media', 'fvp-settings', array( &$this, 'settings_save' ));
+		$dir = wp_upload_dir();
+		$this->help_urls = '
+<p>'.__('These are some of the tested URL formats. Everything in bold is required, everything in brackets is optional.','featured-video-plus').'</p>
+<ul>
+	<li>Local Videos:
+	<ul><li><code><strong>'.$dir['baseurl'].'/<em>FOLDER/FILENAME.webm|mp4|ogg|ogv</em></strong></code></li></ul></li>
+	<li>YouTube:
+	<ul><li><code>[http(s)://](www.)<strong>youtu.be/<em>ELEVENCHARS</em></strong>(?random=13)(?t=1m3s)</code></li>
+	<li><code>[http(s)://](www.)<strong>youtube.com/watch?v=<em>ELEVENCHARS</em></strong>(?random=13)(?t=1m3s)</code></li>
+	<li><code>[http(s)://](www.)<strong>youtube.com/v/<em>ELEVENCHARS</em></strong>(?random=13)(?t=1m3s)</code></li></ul></li>
+	<li>Vimeo:
+	<ul><li><code>(http(s)://)(www.)<strong>vimeo.com/<em>UNIQUEID</em></strong>(#stuff)</code></li></ul></li>
+	<li>Dailymotion:
+	<ul><li><code>(http(s)://)(www.)<strong>dailymotion.com/video/<em>UNIQUEID</em></strong>(_video_title)(#stuff)</code></li></ul></li>
+	<li>Liveleak:
+	<ul><li><code>(http(s)://)(www.)<strong>liveleak.com/view?i=<em>LIV_ELEAKUNQID</em></strong></code></li></ul></li>
+</ul>'."\n";
 	}
 
 	/**
-	 * The settings section content. Describes the plugin settings, the php functions and the WordPress shortcode.
+	 * Adds help tabs to contextual help. WordPress 3.3+
 	 *
-	 * @since 1.0
-	 */
-	function settings_content() { ?>
-
-<p>To display your featured videos you can either make use of the automatical replacement, use the <code>[featured-video]</code>-shortcode or manually edit your theme's source files to make use of the plugins PHP-functions.</p>
-<table>
-	<tr style="vertical-align: top;">
-		<td style="width: 50%;">
-			<h4 style="margin-top: 0">WordPress Shortcode Usage</h4>
-			<table>
-				<tr style="vertical-align: top;">
-					<td><code>[featured-video]</code></td>
-					<td>Displays the video in its default size, if <code>width</code> below is set to <code>auto</code> 100%, elsewise 560px.</td>
-				</tr>
-				<tr style="vertical-align: top;">
-					<td><code>[featured-video width=300]</code></td>
-					<td>Displays the video with an width of 300 pixel. Height will be fitted to the aspect ratio.</td>
-				</tr>
-			</table>
-		</td>
-		<td style="width: 50%;">
-			<h4 style="margin-top: 0">PHP Function Reference</h4>
-			<ul>
-				<li><code>the_post_video(array(width, height), allow_fullscreen = true)</code></li>
-				<li><code>has_post_video(post_id = null)</code></li>
-				<li><code>get_the_post_video(post_id = null, array(width, height), allow_fullscreen = true)</code></li>
-			</ul>
-			<p class="description">
-				All parameters are optional. If <code>post_id == null</code> the current post's id will be used.
-				The functions are implemented with their <a href="http://codex.wordpress.org/Post_Thumbnails#Function_Reference" title="Post Thumbnails Function Reference">"featured image"-counterparts</a> in mind, they can be used the same way.
-			</p>
-		</td>
-	</tr>
-</table>
-
-<?php }
-
-	/**
-	 * Displays the setting if the plugin should display the featured video in place of featured images.
+	 * @see http://codex.wordpress.org/Function_Reference/add_help_tab
 	 *
-	 * @since 1.0
+	 * @since 1.3
 	 */
-	function settings_overwrite() {
-		$options = get_option( 'fvp-settings' );
-		$overwrite = isset($options['overwrite']) ? $options['overwrite'] : false;
-?>
+	public function tabs() {
+		$screen = get_current_screen();
+		if( $screen->id != 'post' )
+			return;
 
-<input type="radio" name="fvp-settings[overwrite]" id="fvp-settings-overwrite-1" value="true" 	<?php checked( true, $overwrite, true ) ?>/><label for="fvp-settings-overwrite-1">&nbsp;yes&nbsp;<span style="font-style: italic;">(default)</span></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="radio" name="fvp-settings[overwrite]" id="fvp-settings-overwrite-2" value="false" 	<?php checked( false, $overwrite, true ) ?>/><label for="fvp-settings-overwrite-2">&nbsp;no</label>
-<p class="description">If a featured video is available, it can be displayed in place of the featured image.<br />For some themes this could result in displaying errors. When using this, try different <code>width</code> and <code>height</code> settings.</p>
+		if( get_bloginfo('version') >= 3.3 ) {
+			// PHP FUNCTIONS HELP TAB
+			$screen->add_help_tab( array(
+				'id' => 'fvp_help_localvideos',
+				'title'   => __('Featured Video','featured-video-plus').':&nbsp;'.__('Local Media', 'featured-video-plus'),
+				'content' => $this->help_localmedia
+			));
 
-<?php }
-
-	/**
-	 * Displays the setting if the plugin should fit the width of the videos automatically or use fixed widths.
-	 *
-	 * @since 1.0
-	 */
-	function settings_width() {
-		$options = get_option( 'fvp-settings' );
-		$width = isset($options['width']) ? $options['width'] : 'auto'; ?>
-
-<input type="radio" name="fvp-settings[width]" id="fvp-settings-width-1" value="auto" 	<?php checked( 'auto', 	$width, true ) ?>/><label for="fvp-settings-width-1">&nbsp;auto&nbsp;<span style="font-style: italic;">(default)</span></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="radio" name="fvp-settings[width]" id="fvp-settings-width-2" value="fixed" 	<?php checked( 'fixed', $width, true ) ?>/><label for="fvp-settings-width-2">&nbsp;fixed</label>
-<p class="description">Using <code>auto</code> the video's width will be adjusted to fit the parent element. Works best in combination with height setted to <code>auto</code> as well.</p>
-
-<?php }
-
-	/**
-	 * Displays the setting if the plugin should fit the height of the videos automatically to their width/height ratio or use fixed heights, which might result in black bars.
-	 *
-	 * @since 1.0
-	 */
-	function settings_height() {
-		$options = get_option( 'fvp-settings' );
-		$height = isset($options['height']) ? $options['height'] : 'auto'; ?>
-
-<input type="radio" name="fvp-settings[height]" id="fvp-settings-height-1" value="auto" 	<?php checked( 'auto', 	$height, true ) ?>/><label for="fvp-settings-height-1">&nbsp;auto&nbsp;<span style="font-style: italic;">(default)</span></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="radio" name="fvp-settings[height]" id="fvp-settings-height-2" value="fixed" 	<?php checked( 'fixed', $height, true ) ?>/><label for="fvp-settings-height-2">&nbsp;fixed</label>
-<p class="description">If using <code>fixed</code> videos may lose their ascpect radio, resulting in <span style="font-style: italic;">not so pretty</span> black bars.</p>
-
-<?php }
-
-	/**
-	 * Displays the settings to style the vimeo video player. Default: &amp;title=1&amp;portrait=0&amp;byline=1&amp;color=00adef
-	 *
-	 * @see http://developer.vimeo.com/player/embedding
-	 * @see http://make.wordpress.org/core/2012/11/30/new-color-picker-in-wp-3-5/
-	 * @see http://codex.wordpress.org/Function_Reference/wp_style_is
-	 * @since 1.0
-	 */
-	function settings_vimeo() {
-		$options = get_option( 'fvp-settings' );
-		$vimeo['portrait'] 	= isset($options['vimeo']['portrait']) 	? $options['vimeo']['portrait'] : 0;
-		$vimeo['title'] 	= isset($options['vimeo']['title']) 	? $options['vimeo']['title'] 	: 1;
-		$vimeo['byline'] 	= isset($options['vimeo']['byline']) 	? $options['vimeo']['byline'] 	: 1;
-		$vimeo['color'] 	= isset($options['vimeo']['color']) 	? $options['vimeo']['color'] 	: '00adef'; ?>
-
-<div style="position: relative; bottom: .6em;">
-	<input type="checkbox" name="fvp-settings[vimeo][portrait]" id="fvp-settings-vimeo-1" value="display" <?php checked( 1, $vimeo['portrait'], 1 ) ?>/><label for="fvp-settings-vimeo-1">&nbsp;Portrait</label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="checkbox" name="fvp-settings[vimeo][title]" 	id="fvp-settings-vimeo-2" value="display" <?php checked( 1, $vimeo['title'], 	1 ) ?>/><label for="fvp-settings-vimeo-2">&nbsp;Title</label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="checkbox" name="fvp-settings[vimeo][byline]" 	id="fvp-settings-vimeo-3" value="display" <?php checked( 1, $vimeo['byline'], 	1 ) ?>/><label for="fvp-settings-vimeo-3">&nbsp;Byline</label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	<span class="color-picker" style="position: relative;<?php if( wp_style_is( 'wp-color-picker', 'done' ) ) echo ' top: .6em;'; ?>" >
-		<input type="text" name="fvp-settings[vimeo][color]" id="fvp-settings-vimeo-color" value="#<?php echo $vimeo['color'] ?>" data-default-color="#00adef" />
-		<label for="fvp-settings-vimeo-color" style="display: none;">&nbsp;Color</label>
-		<?php if( !wp_style_is('wp-color-picker', 'registered' ) ) { ?><div style="position: absolute; bottom: 0; right: -197px; background-color: #fff; z-index: 100; border: 1px solid #ccc;" id="fvp-settings-vimeo-colorpicker"></div><?php } ?>
-	</span>
-</div>
-<p class="description">These settings could be overwritten by videos from Vimeo Plus members.</p>
-
-<?php
+			// SHORTCODE HELP TAB
+			$screen->add_help_tab( array(
+				'id' => 'fvp_help_urls',
+				'title'   => __('Featured Video','featured-video-plus').':&nbsp;'.__('Valid URLs', 'featured-video-plus'),
+				'content' => $this->help_urls
+			));
+		}
 	}
 
 	/**
-	 * Displays info about rating the plugin, giving feedback and requesting new features
+	 * Adds help text to contextual help. WordPress 3.3-
 	 *
-	 * @since 1.0
-	 */
-	function settings_rate() { ?>
-
-<p>
-	Found a bug or <span style="font-weight: bold;">missing a specific video service</span>? <a href="http://wordpress.org/extend/plugins/featured-video/" title="Featured Video Plus Support Forum on wordpress.org" style="font-weight: bold;">Leave a note</a> in the plugins support forum!<br />
-	No? Than please <a href="http://wordpress.org/extend/plugins/featured-video/" title="Featured Video Plus on wordpress.org" style="font-weight: bold;">rate it</a>.<br />
-</p>
-
-<?php }
-
-	/**
-	 * Function through which all settings are passed before they are saved. Validate the data.
+	 * @see http://wordpress.stackexchange.com/a/35164
 	 *
-	 * @since 1.0
+	 * @since 1.3
 	 */
-	function settings_save($input) {
-		$options = get_option( 'fvp-settings' );
+	public function help_pre_33( $contextual_help, $screen_id, $screen ) {
+		if( $screen->id != 'post' )
+			return $contextual_help;
 
-		$options['overwrite'] 	= isset($input['overwrite']) && $input['overwrite'] == 'true' ? true : false;
+		$contextual_help .= '<hr /><h3>'.__('Featured Video','featured-video-plus').':&nbsp;'.__('Local Media', 'featured-video-plus').'</h3>';
+		$contextual_help .= $this->help_localmedia;
+		$contextual_help .= '<h3>'.__('Featured Video','featured-video-plus').':&nbsp;'.__('Valid URLs', 'featured-video-plus').'</h3>';
+		$contextual_help .= $this->help_urls;
 
-		$options['vimeo']['portrait'] 	= isset($input['vimeo']['portrait'])&& ( $input['vimeo']['portrait'] == 'display' ) ? 1 : 0;
-		$options['vimeo']['title'] 		= isset($input['vimeo']['title']) 	&& ( $input['vimeo']['title'] 	 == 'display' ) ? 1 : 0;
-		$options['vimeo']['byline'] 	= isset($input['vimeo']['byline']) 	&& ( $input['vimeo']['byline'] 	 == 'display' ) ? 1 : 0;
-
-		if( isset($options['vimeo']['color']) ) {
-			preg_match('/#?([0123456789abcdef]{3}[0123456789abcdef]{0,3})/i', $input['vimeo']['color'], $color);
-			$options['vimeo']['color'] = $color[1];
-		} else
-			$options['vimeo']['color'] = '00adef';
-
-
-		return $options;
+		return $contextual_help;
 	}
 
 	/**
@@ -587,7 +567,6 @@ http://www.youtube.com/watch?feature=blub&v=G_Oj7UI0-pw
 	 * @see http://codex.wordpress.org/Plugin_API/Filter_Reference/upload_mimes
 	 * @since 1.2
 	 */
-
 	function add_upload_mimes( $mimes=array() ) {
 		$mimes['webm'] = 'video/webm';
 

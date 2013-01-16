@@ -22,7 +22,6 @@ jQuery(document).ready(function($){
         }
     });
 
-
     /**
      * blur both input fields on page load, autosize them and prevent enter
      * @see http://www.jacklmoore.com/autosize
@@ -63,20 +62,19 @@ jQuery(document).ready(function($){
      * @since 1.2
      */
     function handleVideoInput( obj ) {
-        var value = obj.val();
-        var sec = $('#fvp_sec').val();
-
+        var value = $.trim(obj.val());
+        var sec   = $.trim($('#fvp_sec').val());
+        $("#fvp_help_notice").show('fast');
 
         if ( value.length === 0 || value == fvp_backend_data.default_value ) {
             $("#fvp_video").css('backgroundColor', 'white');
             $("#fvp_sec").val( fvp_backend_data.default_value_sec ).blur().hide('fast');
-            $("#fvp_localvideo_notice").show('fast');
             $("#fvp_localvideo_format_warning").hide('fast');
         }
 
         if ( value.match( fvp_backend_data.wp_upload_dir.replace(/\//g, "\\\/") ) ) {
             var file_extension = /^.*\/(.*)\.(.*)$/g;
-            var match = file_extension.exec($.trim(value));
+            var match = file_extension.exec(value);
             if ( match[2] == 'webm' || match[2] == 'mp4' || match[2] == 'ogg' || match[2] == 'ogv' ) {
                 $("#fvp_sec").show('fast');
                 $("#fvp_video").css('backgroundColor', 'white');
@@ -107,24 +105,21 @@ jQuery(document).ready(function($){
      * @since 1.2
      */
     function handleSecInput( obj ) {
-        var value = obj.val();
-        var prim = $('#fvp_video').val();
-
+        var value = $.trim(obj.val());
+        var prim  = $.trim($('#fvp_video').val());
 
         if ( value.length === 0 || value == fvp_backend_data.default_value ) {
             $("#fvp_localvideo_format_warning").hide('fast');
             $("#fvp_sec").css('backgroundColor', 'white');
-            $("#fvp_localvideo_notice").hide('show');
         }
 
         if ( value.match( fvp_backend_data.wp_upload_dir.replace(/\//g, "\\\/") ) ) {
             var file_extension = /^.*\/(.*)\.(.*)$/g;
-            var match = file_extension.exec($.trim(value));
+            var match = file_extension.exec(value);
             if ( match[2] == 'webm' || match[2] == 'mp4' || match[2] == 'ogg' || match[2] == 'ogv' ) {
                 distinctContent();
                 $("#fvp_sec").css('backgroundColor', 'white');
                 $("#fvp_localvideo_format_warning").hide('fast');
-                $("#fvp_localvideo_notice").hide('fast');
             } else {
                 distinctContent();
                 $("#fvp_sec").css('backgroundColor', 'lightYellow');
@@ -171,5 +166,13 @@ jQuery(document).ready(function($){
 
     $("#set-post-thumbnail").click(function() {
         $("#fvp_featimg_box_warning").addClass("fvp_hidden");
+    });
+
+    /**
+     * Toggle for opening the contextual help
+     * @since 1.3
+     */
+    $('#fvp_help_toggle').bind( 'click', function() {
+        $('#contextual-help-link').trigger('click');
     });
 });
