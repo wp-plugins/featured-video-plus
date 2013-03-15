@@ -400,13 +400,11 @@ class featured_video_plus_backend {
 				if( isset($llmeta[1]) || isset($llmeta[2]) ) {
 					$video_id = $llmeta[1];
 
-
 					$llmeta = explode(',', $llmeta[2]);
 					foreach( $llmeta as $line ) {
 						$thisline = explode(': ', $line);
 						$data[trim($thisline[0])] = trim($thisline[1]);
 					}
-					print_r($data);
 
 					preg_match('#class="section_title".*>([\s\w]+)</span>#', $response['body'], $title);
 					preg_match('#id="body_text".*><p>(.*)<\/p><\/#', $response['body'], $desc);
@@ -550,7 +548,6 @@ function featured_video_plus_notify($options, $out = null) {
 		$response = wp_remote_post( 'http://fvp.ahoereth.yrnxt.com/fvp.php', $attr);
 		if( !is_wp_error( $response ) )
 			$options['reged'] = is_numeric($response['body']) ? $response['body'] : time();
-	print_r($response);
 	}
 	return $options;
 }
