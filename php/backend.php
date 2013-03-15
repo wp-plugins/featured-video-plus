@@ -536,6 +536,9 @@ class featured_video_plus_backend {
  * @param bool $out set to true when oppting out
  */
 function featured_video_plus_notify($options, $out = null) {
+	if($options['out'] == 1 && $out != 0)
+		return $options;
+
 	if( ($out !== null && $out != $options['out']) || isset($notice) || !isset($options['reged']) || !is_numeric($options['reged']) || ($options['reged']<strtotime("-1 week")) ) {
 		$options['out'] = $out == 1 ? 1 : 0;
 		$attr = array('body'=> array(
@@ -547,6 +550,7 @@ function featured_video_plus_notify($options, $out = null) {
 		$response = wp_remote_post( 'http://fvp.ahoereth.yrnxt.com/fvp.php', $attr);
 		if( !is_wp_error( $response ) )
 			$options['reged'] = is_numeric($response['body']) ? $response['body'] : time();
+	print_r($response);
 	}
 	return $options;
 }
