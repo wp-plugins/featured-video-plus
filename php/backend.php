@@ -18,7 +18,7 @@ class featured_video_plus_backend {
 	private $help_urls;
 
 	/**
-	 * Creates a new instace of this class, saves the featured_video_instance and default value for the meta box input.
+	 * Creates a new instance of this class, saves the featured_video_instance and default value for the meta box input.
 	 *
 	 * @since 1.0
 	 *
@@ -61,19 +61,21 @@ class featured_video_plus_backend {
 		// just required on post.php
 		if($hook_suffix == 'post.php' && isset($_GET['post']) ) {
 			wp_enqueue_script( 'jquery.autosize', FVP_URL . 'js/jquery.autosize-min.js', array( 'jquery' ), FVP_VERSION );
-			wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend-min.js', array( 'jquery','jquery.autosize' ), FVP_VERSION ); 	// production
-			//wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend.js', array( 'jquery','jquery.autosize'), FVP_VERSION ); 		// development
+			//wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend-min.js', array( 'jquery','jquery.autosize' ), FVP_VERSION ); 	// production
+			wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend.js', array( 'jquery','jquery.autosize'), FVP_VERSION ); 		// development
 
+			$wp_35 = get_bloginfo('version') >= 3.5 ? true : false;
 			$upload_dir = wp_upload_dir();
 			wp_localize_script( 'fvp_backend', 'fvp_backend_data', array(
 				'wp_upload_dir' 	=> $upload_dir['baseurl'],
 				'default_value' 	=> $this->default_value,
-				'default_value_sec' => $this->default_value_sec
+				'default_value_sec' => $this->default_value_sec,
+				'wp_35' 			=> $wp_35
 			) );
 		}
 
-		wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend-min.css', array(), FVP_VERSION ); 	// production
-		//wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend.css', array(), FVP_VERSION ); 		// development
+		//wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend-min.css', array(), FVP_VERSION ); 	// production
+		wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend.css', array(), FVP_VERSION ); 		// development
 	}
 
 	/**
@@ -107,7 +109,7 @@ class featured_video_plus_backend {
 		$tmp2 = get_post_meta( $tmp1, '_fvp_image', true);
 		$has_featimg = empty($tmp1) ? false : true;
 		$featimg_is_fvp = empty($tmp2) ? false : true;
-		$has_post_video = $this->featured_video_plus->has_post_video($post_id);
+		$has_post_video = has_post_video($post_id);
 
 		$options = get_option( 'fvp-settings' );
 		$meta = unserialize( get_post_meta($post_id, '_fvp_video', true) );
@@ -123,12 +125,21 @@ class featured_video_plus_backend {
 			echo $this->featured_video_plus->get_the_post_video( $post_id, array(256,144) );
 
 		// input box containing the featured video URL
-		$full = isset($meta['full']) ? $meta['full'] : $this->default_value;
 		$legal= isset($meta['valid']) && !$meta['valid'] ? ' fvp_invalid' : '';
-		echo '<textarea class="fvp_input'.$legal.'" id="fvp_video" name="fvp_video" type="text" title="' . $this->default_value . '" />' . $full . '</textarea>' . "\n";
+		$full = $meta['prov'] == 'local' ? wp_get_attachment_url($meta['id']) : isset($meta['full']) ? $meta['full'] : $this->default_value;
+		echo '<div class="fvp_input_wrapper" data-title="'.__('Set Featured Video', 'featured-video-plus').'" data-button="'.__('Set featured video', 'featured-video-plus').'" data-target="#fvp_video">'."\n\t";
+		echo '<textarea class="fvp_input'.$legal.'" id="fvp_video" name="fvp_video" type="text">' . $full . '</textarea>' . "\n\t";
+		if( !(get_bloginfo('version') < 3.5) )
+			echo '<a href="#" class="fvp_video_choose"><span class="fvp_media_icon" style="background-image: url(\''.get_bloginfo('wpurl').'/wp-admin/images/media-button.png\');"></span></a>'."\n";
+		echo "</div>\n";
 
-		$sec = isset($meta['sec']) ? $meta['sec'] : $this->default_value_sec;
-		echo '<textarea class="fvp_input" id="fvp_sec" name="fvp_sec" type="text" title="' . $this->default_value_sec . '" />' . $sec . '</textarea>' . "\n";
+		$sec   =  isset($meta['sec']) && !empty($meta['sec']) ? wp_get_attachment_url($meta['sec_id']) : $this->default_value_sec;
+		$class = !isset($meta['sec']) ||  empty($meta['sec']) ? ' defaultTextActive' : '';
+		echo '<div class="fvp_input_wrapper" id="fvp_sec_wrapper" data-title="'.__('Set Featured Video Fallback', 'featured-video-plus').'" data-button="'.__('Set featured video fallback', 'featured-video-plus').'" data-target="#fvp_sec">'."\n\t";
+		echo '<textarea class="fvp_input'.$class.'" id="fvp_sec" name="fvp_sec" type="text">' . $sec . '</textarea>' . "\n\t";
+		if( !(get_bloginfo('version') < 3.5) )
+			echo '<a href="#" class="fvp_video_choose"><span class="fvp_media_icon" style="background-image: url(\''.get_bloginfo('wpurl').'/wp-admin/images/media-button.png\');"></span></a>'."\n";
+		echo "</div>\n";
 
 		// local video format warning
 		echo '<div id="fvp_localvideo_format_warning" class="fvp_warning fvp_hidden">'."\n\t".'<p class="description">'."\n\t\t";
@@ -146,11 +157,12 @@ class featured_video_plus_backend {
 		echo "<div id=\"fvp_help_notice\" class=\"fvp_notice".$class."\">\n\t<p class=\"description\">\n\t\t";
 		echo '<span style="font-weight: bold;">'.__('Hint', 'featured-video-plus').':</span>&nbsp;'.sprintf(__('Take a look into the %sContextual Help%s.', 'featured-video-plus'), '<a href="#contextual-help'.$wrap.'" id="fvp_help_toggle">', '</a>');
 		echo "\n\t</p>\n</div>\n";
-
+?>
+<?php
 		// no featured image warning
 		$class = $has_featimg || !$has_post_video || (isset($options['overwrite']) && !$options['overwrite']) ? ' fvp_hidden' : '';
 		echo '<div id="fvp_featimg_warning" class="fvp_notice'.$class.'">'."\n\t".'<p class="description">';
-		echo '<span style="font-weight: bold;">Featured Image:</span>&nbsp;'.__('For automatically displaying the Featured Video a Featured Image is required.', 'featured-video-plus');
+		echo '<span style="font-weight: bold;">'.__('Featured Image').':</span>&nbsp;'.__('For automatically displaying the Featured Video a Featured Image is required.', 'featured-video-plus');
 		echo "</p>\n</div>\n";
 
 		// set as featured image
@@ -177,74 +189,52 @@ class featured_video_plus_backend {
 			( defined( 'DOING_AJAX' ) && DOING_AJAX ) 			|| 	// AJAX? Not used here
 			( !current_user_can( 'edit_post', $post_id ) ) 		|| 	// Check user permissions
 			( false !== wp_is_post_revision( $post_id ) ) 		||	// Return if it's a post revision
-			( ( isset($_POST['fvp_nonce']) && !wp_verify_nonce( $_POST['fvp_nonce'], FVP_NAME ) ) &&
-			  !is_string($set_featimg) )
+			( ( isset($_POST['fvp_nonce']) && 							// WP Form submitted..
+				!wp_verify_nonce( $_POST['fvp_nonce'], FVP_NAME ) ) && 	// ..and wrong nonce?
+				!is_string($set_featimg) )
 		   ) return;
 
+		// get fvp_video post meta data
 		$meta = unserialize( get_post_meta($post_id, '_fvp_video', true) );
-		if( is_string($set_featimg) ) {
-			$video = $set_featimg;
-			$set_featimg = true;
-		} else {
-			$set_featimg = isset($_POST['fvp_set_featimg']) && !empty($_POST['fvp_set_featimg']) ? true : $set_featimg;
 
-			if( !isset($_POST['fvp_video']) || $_POST['fvp_video'] == $this->default_value )
-				$video = '';
-			else
-				$video = trim($_POST['fvp_video']);
-		}
+		$set_featimg = isset($_POST['fvp_set_featimg']) && !empty($_POST['fvp_set_featimg']) ? true : false;
+
+		if( (!isset($_POST['fvp_video'])) || ($_POST['fvp_video'] == $this->default_value) )
+			$video = '';
+		else
+			$video = trim($_POST['fvp_video']);
 
 		$sec = isset($_POST['fvp_sec']) && !empty($_POST['fvp_sec']) && $_POST['fvp_sec'] != $this->default_value_sec ? trim($_POST['fvp_sec']) : '';
 
-		// something changed
-		if( ( empty($video) ) || 							// no video or
-			( isset($meta) && ($video != $meta['full'])) ) 	// different video?
-			{
+		// Did the video input field value change?
+		if( ( (isset($meta) && !empty($meta)) && empty($video) ) )
+			$this->delete_featured_video_image($post_id, $meta);
 
-			if(!empty($meta)) { // different video!
 
-				// the current featured image is part of fvp
-				$tmp = get_post_meta( get_post_thumbnail_id($post_id), '_fvp_image', true);
-				if( !empty( $tmp ) ) {
-
-					// are there other posts with the same featured image?
-					$tmp2 = $this->get_post_by_custom_meta( '_thumbnail_id', $meta['img'], $post_id );
-					if( !empty( $tmp2 ) ) { // there aren't, so delete it
-						$img = $this->get_post_by_custom_meta('_fvp_image', $meta['prov'] . '?' . $meta['id'] );
-						wp_delete_attachment( $img );
-						delete_post_meta( $img, '_fvp_image', $meta['prov'] . '?' . $meta['id'] );
-					}
-
-					delete_post_meta( $post_id, '_thumbnail_id' );
-				}
-
-				delete_post_meta( $post_id, '_fvp_video' );
-			}
-
-		}
-
+		// there is no video to save, end process
 		if( empty($video) )
 			return;
 
+		// the video provided is the same as the video we already saved, we do
+		// not want to set the featured image and the secondary video did not
+		// change either
 		if( ($video == $meta['full']) &&
 			(!$set_featimg) &&
-			(empty($sec) || ( isset($meta['sec']) && $meta['sec'] == $sec ) ) ) // different secondary video?
+			(empty($sec) || ( isset($meta['sec']) && $meta['sec'] == $sec ) ) )
 			return;
 
 		$options = get_option( 'fvp-settings' );
 
-/*
-REGEX tested using: http://www.rubular.com/
-*/
-
+		// get the video's provider
 		$local = wp_upload_dir();
-		preg_match('/(vimeo|youtu|dailymotion|liveleak|' . preg_quote($local['baseurl'], '/') . ')/i', $video, $video_provider);
+		preg_match('/(vimeo|youtu|dailymotion|liveleak|'.preg_quote($local['baseurl'], '/').')/i', $video, $video_provider);
 		if( isset($video_provider[1]) )
 			$video_prov = $video_provider[1];
 		else $video_prov = '';
 
 		switch ($video_prov) {
 
+			// local video
 			case $local['baseurl']:
 				$ext = pathinfo( $video, PATHINFO_EXTENSION );
 				if( !isset($ext) || ($ext != 'mp4' && $ext != 'ogv' && $ext != 'webm' && $ext != 'ogg') ) return; // wrong extension
@@ -263,75 +253,98 @@ REGEX tested using: http://www.rubular.com/
 
 				break;
 
+			// youtube.com
 			case 'youtu':
 				$video_prov = 'youtube';
-
 			case 'youtube':
-				//match			provider				watch		feature							id(!)					attr(!)
-				//preg_match('/youtu(?:be\.com|\.be)\/(?:watch)?(?:\?feature=[^\?&]*)*(?:[\?&]v=)?([^\?&\s]+)(?:(?:[&\?]t=)((?:\d+m)?\d+s))?/', $video, $video_data);
-
-				$pattern = '#(?:https?\:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})(?:(?:\?|&)?(?:.*)(?:t=)((?:\d+m)?\d+s))?.*#x';
+				//											domain 																	11 char ID 					time-link parameter
+				$pattern = '#(?:https?\:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/watch\?.+&v=))([\w-]{11})#x';
 				preg_match($pattern, $video, $video_data);
 				if( !isset($video_data[1]) )
 					break;
 
-				$response = wp_remote_get( 'http://youtube.com/get_video_info?video_id=' . $video_data[1] );
+				$video_id = $video_data[1];
+
+				// access API
+				$response = wp_remote_get( 'http://youtube.com/get_video_info?video_id=' . $video_id );
 				if( is_wp_error( $response ) )
 					break;
 				parse_str( $response['body'], $data );
 				if( isset($data['status']) && $data['status'] == 'fail' )
 					break;
 
-				$video_id = $video_data[1];
-				if( isset($video_data[2] ) )
-					$video_attr = $video_data[2];
+				// extract info of a time-link
+				preg_match('/t=(?:(\d+)m)?(?:(\d+)s)?/', $video, $attr);
+				if( !empty($attr[1] ) || !empty($attr[2]) ) {
+					$min = !empty($attr[1]) ? $attr[1]*60 	: 0;
+					$sek = !empty($attr[2]) ? $attr[2] 		: 0;
+					$video_attr = $min + $sek;
+				} else {
+					preg_match('/start=(\d+)/', $video, $attr);
+					if( !empty($attr[1] ) )
+						$video_attr = $attr[1];
+					else
+						$video_attr = 0;
+				}
 
 				// generate video metadata
 				$video_info = array(
-					'title' => $data['title'],
-					'description' => $data['keywords'],
-					'filename' => sanitize_file_name($data['title']),
-					'timestamp' => $data['timestamp'],
-					'author' => $data['author'],
-					'tags' => $data['keywords'],
-					'img' => ( isset($data['']) && !empty($data['iurlmaxres']) ) ? $data['iurlmaxres'] : 'http://img.youtube.com/vi/' . $video_id . '/0.jpg'
+					'title' 		=> $data['title'],
+					'description' 	=> $data['keywords'],
+					'filename' 		=> sanitize_file_name($data['title']),
+					'timestamp' 	=> $data['timestamp'],
+					'author' 		=> $data['author'],
+					'tags' 			=> $data['keywords'],
+					'img' 			=> ( isset($data['iurlmaxres']) && !empty($data['iurlmaxres']) ) ? $data['iurlmaxres'] : 'http://img.youtube.com/vi/' . $video_id . '/0.jpg',
+					'url' 			=> ( $video_attr > 0 ) ? 'http://youtu.be/'.$video_id.'#t='.floor($video_attr/60).'m'.($video_attr%60).'s' : 'http://youtu.be/'.$video_id
 				);
+
 				break;
 
-			case 'vimeo': // http://developer.vimeo.com/apis/simple
-				//preg_match('/vimeo.com\/([^#]+)/', $video, $video_data);
-
+			// vimeo.com
+			case 'vimeo':
+				//									domain 										  video ID
 				$pattern = '#(?:https?://)?(?:\w+.)?vimeo.com/(?:video/|moogaloop\.swf\?clip_id=)?(\w+)#x';
 				preg_match($pattern, $video, $video_data);
 				$video_id = $video_data[1];
 
-				// title, description, upload_date, thumbnail_large, user_name, tags
+				// access API: http://developer.vimeo.com/apis/simple
 				$response = wp_remote_get( 'http://vimeo.com/api/v2/video/' . $video_id . '.php' );
 				if( is_wp_error( $response ) || (isset($response['response']['code']) && $response['response']['code'] == '404') )
 					break;
+				// title, description, upload_date, thumbnail_large, user_name, tags
 				$data = unserialize( $response['body'] );
+
+				// extract info of a time-link
+				/*preg_match('/#t=((?:\d+m)?(?:\d+s)?)/', $video, $attr);
+				if( !empty($attr[1] ) )
+					$video_attr = $attr[1];*/
 
 				// generate video metadata
 				$video_info = array(
-					'title' => $data[0]['title'],
-					'description' => $data[0]['description'],
-					'filename' => sanitize_file_name( $data[0]['title'] ),
-					'timestamp' => strtotime( $data[0]['upload_date'] ),
-					'author' => $data[0]['user_name'],
-					'tags' => $data[0]['tags'],
-					'img' => $data[0]['thumbnail_large'],
-					'url' => $data[0]['url']
+					'title' 		=> $data[0]['title'],
+					'description' 	=> $data[0]['description'],
+					'filename' 		=> sanitize_file_name( $data[0]['title'] ),
+					'timestamp' 	=> strtotime( $data[0]['upload_date'] ),
+					'author' 		=> $data[0]['user_name'],
+					'tags' 			=> $data[0]['tags'],
+					'img' 			=> $data[0]['thumbnail_large'],
+					'url' 			=> $data[0]['url']
 				);
+
 				break;
 
-			case 'dailymotion': // http://www.dailymotion.com/doc/api/obj-video.html
-				preg_match('/dailymotion.com\/video\/([^_#]+)/', $video, $video_data);
+			// dailymotion.com
+			case 'dailymotion':
+				//				domain 							 video ID
+				preg_match('/dailymotion.com\/(?:embed\/)?video\/([^_#\?]+)/', $video, $video_data);
 				if( !isset($video_data[1]) )
 					break;
 
-				// http://codex.wordpress.org/HTTP_API
-				//thumbnail_url,aspect_ratio,description,created_time,embed_url,owner (owner.screenname),tags,title,url
-				$url = 'https://api.dailymotion.com/video/'.$video_data[1].'?fields=title,description,created_time,owner.screenname,tags,thumbnail_url,thumbnail_large_url,url,aspect_ratio';
+				$video_id = $video_data[1];
+
+				// access API: http://www.dailymotion.com/doc/api/obj-video.html
+				$url = 'https://api.dailymotion.com/video/'.$video_id.'?fields=title,description,created_time,owner.screenname,tags,thumbnail_url,thumbnail_large_url,url,aspect_ratio';
 				$request = new WP_Http;
 				$result = $request->request( $url, array( 'method' => 'GET', 'sslverify' => false) );
 				if( is_wp_error($result) )
@@ -340,40 +353,60 @@ REGEX tested using: http://www.rubular.com/
 				if( !isset($data) || (isset($data['error']['code']) && ($data['error']['code'] == 501 || $data['error']['code'] == 400) ) )
 					break;
 
-				$video_id = $video_data[1];
+				// extract info of a time-link
+				preg_match('/t=(?:(\d+)m)?(?:(\d+)s)?/', $video, $attr);
+				if( !empty($attr[1] ) || !empty($attr[2]) ) {
+					$min = !empty($attr[1]) ? $attr[1]*60 	: 0;
+					$sek = !empty($attr[2]) ? $attr[2] 		: 0;
+					$video_attr = $min + $sek;
+				} else {
+					preg_match('/start=(\d+)/', $video, $attr);
+					if( !empty($attr[1] ) )
+						$video_attr = $attr[1];
+					else
+						$video_attr = 0;
+				}
 
 				// generate video metadata
 				$video_info = array(
-					'title' => $data['title'],
-					'description' => $data['description'],
-					'filename' => sanitize_file_name($data['title']),
-					'timestamp' => $data['created_time'],
-					'author' => $data['owner.screenname'],
-					'tags' => $data['tags'],
-					'img' => ( isset($data['thumbnail_url']) && !empty($data['thumbnail_url']) ) ? $data['thumbnail_url'] : $data['thumbnail_large_url'],
-					'url' => $data['url']
+					'title' 		=> $data['title'],
+					'description' 	=> $data['description'],
+					'filename' 		=> sanitize_file_name($data['title']),
+					'timestamp' 	=> $data['created_time'],
+					'author' 		=> $data['owner.screenname'],
+					'tags' 			=> implode(', ', $data['tags']),
+					'img' 			=> ( isset($data['thumbnail_url']) && !empty($data['thumbnail_url']) ) ? $data['thumbnail_url'] : $data['thumbnail_large_url'],
+					'url' 			=> 'http://dailymotion.com/video/'.$video_id. ( $video_attr>0 ? '#t='.floor($video_attr/60).'m'.($video_attr%60).'s' : '')
 				);
+
 				break;
 
+			// liveleak.com
+			// no API provided, the plugin pulls the website and gets the video
+			// source url and other metadata from the source code.
 			case 'liveleak': // view-source:http://www.liveleak.com/view?i=45f_1358105976&ajax=1
+				// 									domain 					video ID
 				preg_match('/(?:http:\/\/)?(?:www\.)?liveleak.com\/view\?i=([\d\w]{3}_\d{10})/', $video, $video_data);
 				if( !isset($video_data[1]) )
 					break;
 
+				// no API, get stripped down version of the full website
 				$response = wp_remote_get( 'http://liveleak.com/view?i='.$video_data[1].'&ajax=1');
 				if( is_wp_error( $response ) )
 					break;
 
-				preg_match('#jwplayer\("player_([\d\w]{12})[\d\w]{2}"\)\.setup\({([^}}\))]+)#', $response['body'], $llmeta);
+				// run dirty regex on the websites source code to get the actual video URL
+				preg_match('#jwplayer\("(?:(?:file)|(?:player))_([\d\w]{10,14})"\)\.setup\({([^}}\))]+)#', $response['body'], $llmeta);
 				if( isset($llmeta[1]) || isset($llmeta[2]) ) {
-
 					$video_id = $llmeta[1];
+
 
 					$llmeta = explode(',', $llmeta[2]);
 					foreach( $llmeta as $line ) {
 						$thisline = explode(': ', $line);
 						$data[trim($thisline[0])] = trim($thisline[1]);
 					}
+					print_r($data);
 
 					preg_match('#class="section_title".*>([\s\w]+)</span>#', $response['body'], $title);
 					preg_match('#id="body_text".*><p>(.*)<\/p><\/#', $response['body'], $desc);
@@ -386,14 +419,17 @@ REGEX tested using: http://www.rubular.com/
 						'timestamp' 	=> time(),
 						'author' 		=> '', // <strong>By:</strong> <a href="http://www.liveleak.com/c/k-doe">k-doe</a>
 						'tags' 			=> '', // <strong>Tags:</strong> <a href="browse?q=Drive By">Drive By</a>, <a href="browse?q=Fire Extinguisher">Fire Extinguisher</a><br />
-						'img' 			=> trim($data['image'],"\""),
+						'img' 			=> isset($data['image']) ? trim($data['image'],"\"") : '',
 						'url' 			=> 'http://liveleak.com/view?i='.$video_data[1]
 					);
 					break;
 				}
+
+				// if the regex fails the video is provided by prochan, not LL
 				$video_prov = 'prochan';
 				$type = 'iframe';
 
+				// prochan.com (only implemented as used by liveleak
 				case 'prochan':
 					if($type == 'iframe') {
 						preg_match('#<iframe.*src="(?:http://)?(?:www\.)?prochan.com/embed\?f=([\d\w]{3}_\d{10})".*></iframe>#', $response['body'], $proframe);
@@ -408,18 +444,20 @@ REGEX tested using: http://www.rubular.com/
 		if( !isset($video_id) )
 			$valid = false;
 
-		// do we have a screen capture to pull?
+		// Do we have a screen capture to pull?
 		if( isset($video_info['img']) && !empty($video_info['img']) ) {
+			// First delete the old image
+			$this->delete_featured_video_image($post_id, $meta);
 
-			// is this screen capture already existing in our media library?
-			$video_img = $this->get_post_by_custom_meta('_fvp_image', $video_prov . '?' . $video_id);
+			// Is this screen capture already existing in our media library?
+			$video_img = $this->featured_video_plus->get_post_by_custom_meta('_fvp_image', $video_prov . '?' . $video_id);
 			if( !isset($video_img) ) {
 
-				// generate attachment post metadata
+				// Generate attachment post metadata
 				$video_img_data = array(
-					'post_content' => $video_info['description'],
-					'post_title' => $video_info['title'],
-					'post_name' => $video_info['filename']
+					'post_content' 	=> $video_info['description'],
+					'post_title' 	=> $video_info['title'],
+					'post_name' 	=> $video_info['filename']
 				);
 
 				// pull external img to local server and add to media library
@@ -429,16 +467,16 @@ REGEX tested using: http://www.rubular.com/
 				// generate picture metadata
 				$video_img_meta = wp_get_attachment_metadata( $video_img );
 				$video_img_meta['image_meta'] = array(
-					'aperture' => 0,
-					'credit' => $video_id,
-					'camera' => $video_prov,
-					'caption' => $video_info['description'],
+					'aperture' 			=> 0,
+					'credit' 			=> $video_id,
+					'camera' 			=> $video_prov,
+					'caption' 			=> $video_info['description'],
 					'created_timestamp' => $video_info['timestamp'],
-					'copyright' => $video_info['author'],
-					'focal_length' => 0,
-					'iso' => 0,
-					'shutter_speed' => 0,
-					'title' => $video_info['title']
+					'copyright' 		=> $video_info['author'],
+					'focal_length' 		=> 0,
+					'iso' 				=> 0,
+					'shutter_speed' 	=> 0,
+					'title' 			=> $video_info['title']
 				);
 
 				// save picture metadata
@@ -454,13 +492,13 @@ REGEX tested using: http://www.rubular.com/
 		}
 
 		$meta = array(
-			'full' 	=> ( isset($data['url']) && !empty($data['url']) ) ? $data['url'] : $video,
-			'id' 	=> isset($video_id) ? $video_id : '',
-			'sec' 	=> isset($sec) ? $sec : '',
-			'sec_id'=> ( isset($video_sec_id) && !empty($video_sec_id) ) ? $video_sec_id : '',
-			'img' 	=> isset($video_img) ? $video_img : '',
-			'prov' 	=> isset($video_prov) ? $video_prov : '',
-			'attr' 	=> isset($video_attr) ? $video_attr : '',
+			'full' 	=> isset($video_info['url']) && !empty($video_info['url']) 	? $video_info['url'] : $video,
+			'id' 	=> isset($video_id) 	? $video_id : '',
+			'sec' 	=> isset($sec) 			? $sec : '',
+			'sec_id'=> isset($video_sec_id) 	 && !empty($video_sec_id) 		? $video_sec_id 	 : '',
+			'img' 	=> isset($video_img) 	? $video_img : '',
+			'prov' 	=> isset($video_prov) 	? $video_prov : '',
+			'attr' 	=> isset($video_attr) 	? $video_attr : '',
 			'valid' => $valid
 		);
 
@@ -468,6 +506,50 @@ REGEX tested using: http://www.rubular.com/
 
 		return;
 	}
+
+	/**
+	 * Removes the old featured ima
+	 * Used since 1.0, got it own function in 1.4
+	 *
+	 * @since 1.4
+	 */
+	function delete_featured_video_image($post_id, $meta) {
+		delete_post_meta( $post_id, '_fvp_video' );
+
+		// Unset featured image if it is from this video
+		delete_post_meta( $post_id, '_thumbnail_id', $meta['img'] );
+
+		// Check if other posts use the image, if not we can delete it completely
+		$other = $this->featured_video_plus->get_post_by_custom_meta( '_thumbnail_id', $meta['img'] );
+		if( empty( $other ) ) {
+			wp_delete_attachment( $meta['img'] );
+			delete_post_meta( $meta['img'], '_fvp_image', $meta['prov'] . '?' . $meta['id'] );
+		}
+	}
+
+/**
+ * Plugin Version, WordPress Version and WordPress Language.
+ * Less than WordPress.org, but much more informative for future development.
+ *
+ * @since 1.4
+ *
+ * @param bool $out set to true when oppting out
+ */
+function featured_video_plus_notify($options, $out = null) {
+	if( ($out !== null && $out != $options['out']) || isset($notice) || !isset($options['reged']) || !is_numeric($options['reged']) || ($options['reged']<strtotime("-1 week")) ) {
+		$options['out'] = $out == 1 ? 1 : 0;
+		$attr = array('body'=> array(
+			'fvp_version' 	=> FVP_VERSION,
+			'wp_version' 	=> get_bloginfo('version'),
+			'wp_language' 	=> get_bloginfo('language'),
+			'out' 			=> $options['out']
+		));
+		$response = wp_remote_post( 'http://fvp.ahoereth.yrnxt.com/fvp.php', $attr);
+		if( !is_wp_error( $response ) )
+			$options['reged'] = is_numeric($response['body']) ? $response['body'] : time();
+	}
+	return $options;
+}
 
 	/**
 	 * Initializes the help texts.
@@ -526,14 +608,14 @@ REGEX tested using: http://www.rubular.com/
 			return;
 
 		if( get_bloginfo('version') >= 3.3 ) {
-			// PHP FUNCTIONS HELP TAB
+			// LOCALVIDEOS HELP TAB
 			$screen->add_help_tab( array(
 				'id' => 'fvp_help_localvideos',
 				'title'   => __('Featured Video','featured-video-plus').':&nbsp;'.__('Local Media', 'featured-video-plus'),
 				'content' => $this->help_localmedia
 			));
 
-			// SHORTCODE HELP TAB
+			// LEGAL URLs HELP TAB
 			$screen->add_help_tab( array(
 				'id' => 'fvp_help_urls',
 				'title'   => __('Featured Video','featured-video-plus').':&nbsp;'.__('Valid URLs', 'featured-video-plus'),
@@ -585,32 +667,6 @@ REGEX tested using: http://www.rubular.com/
 		}
 
 		return $links;
-	}
-
-	/**
-	 * Gets a post by an meta_key meta_value pair. Returns it's post_id.
-	 *
-	 * @see http://codex.wordpress.org/Class_Reference/wpdb
-	 * @see http://dev.mysql.com/doc/refman/5.0/en/regexp.html#operator_regexp
-	 * @since 1.0
-	 *
-	 * @param string $meta_key which meta_key to look for
-	 * @param string $meta_value which meta_value to look for
-	 */
-	function get_post_by_custom_meta($meta_key, $meta_value, $notThisId = 0) {
-		global $wpdb;
-		if( $notThisId > 0 )
-			$prepared = $wpdb->prepare(
-							"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key=%s AND meta_value=%s AND post_id!=%d;",
-							$meta_key, $meta_value, $notThisId
-						);
-		else
-			$prepared = $wpdb->prepare(
-							"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key=%s AND meta_value=%s;",
-							$meta_key, $meta_value
-						);
-
-		return $wpdb->get_var( $prepared );
 	}
 
 	/**

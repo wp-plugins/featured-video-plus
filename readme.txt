@@ -10,7 +10,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.1
 Tested up to: 3.5
-Stable tag: 1.3
+Stable tag: 1.4
 
 Add Featured Videos to your posts and pages. Works like magic with most themes which use Featured Images. Local Media, YouTube, Vimeo, Dailymotion.
 
@@ -20,12 +20,12 @@ Add Featured Videos to your posts and pages. Works like magic with most themes w
 This plugin enables you to define Featured Videos in addition to Featured Images. There are three ways to get the videos onto your page:
 
 1. If your theme already makes use of Featured Images, these will __automatically__ be replaced by Featured Videos if available. Alternatively you can
-2. insert the `[featured-video-plus]`-__Shortcode__ in your entries or
+2. insert the `[featured-video-plus]`-__Shortcode__ in your posts or
 3. manually use the __PHP functions__ in your theme's source files.
 
-Beside your __Local Videos__ (`mp4`, `webM` & `ogg/ogv`) you can use videos from __YouTube__ (w/[time-links](http://support.google.com/youtube/bin/answer.py?hl=en&answer=116618 "Link to a specific time in a video")), __Vimeo__ and __Dailymotion__. If you miss a certain video platform: [Leave me a note](http://wordpress.org/support/plugin/featured-video-plus).
+Beside your __Local Videos__ (`mp4`, `webM` & `ogg/ogv`) you can use videos from __YouTube__, __Vimeo__ and __Dailymotion__. If you miss a certain video platform: [Leave me a note](http://wordpress.org/support/plugin/featured-video-plus). For YouTube and Dailymotion the plugin also features [time-links](http://support.google.com/youtube/bin/answer.py?hl=en&answer=116618).
 
-The plugin adds customization options to your Media Settings. Beside aesthetic individualizations you can turn off automatic integration and tweak settings regarding video sizing. By default videos try to dynamically fit their parent containers width.
+The plugin adds customization options to your Media Settings. Beside aesthetic individualizations for each video platform's player you can turn off automatic integration, turn on autoplay, define your Dailymotion Syndication Key and tweak video sizing. By default videos try to dynamically fit their parent containers width.
 
 = Shortcode =
 
@@ -33,11 +33,14 @@ The plugin adds customization options to your Media Settings. Beside aesthetic i
 	[featured-video-plus width=300]
 
 = PHP functions =
-All parameters are optional. If no post_id is given the current post's id will be used.
 
-	the_post_video(array(width, height))
-	has_post_video(post_id)
-	get_the_post_video(post_id, size(width, height))
+	the_post_video( $size )
+	has_post_video( $post_id )
+	get_the_post_video( $post_id, $size )
+	get_the_post_video_image_url( $post_id )
+	get_the_post_video_image( $post_id )
+
+All parameters are optional. If no `$post_id` is given the current post's ID will be used. `$size` is either a string keyword (`thumbnail`, `medium`, `large` or `full`) or a 2-item array representing width and height in pixels, e.g. array(560,320).
 
 
 
@@ -48,7 +51,7 @@ All parameters are optional. If no post_id is given the current post's id will b
 == Installation ==
 
 1. Visit your WordPress Administration interface and go to Plugins -> Add New
-2. Search for "*Featured Video Plus*", and click "*Install Now*" below the plugins name
+2. Search for "*Featured Video Plus*", and click "*Install Now*" below the plugin's name
 3. When the installation finished, click "*Activate Plugin*"
 
 The plugin is ready to go. Now edit your posts and add video links to the "Featured Video" box on the right! Plugin specific settings can be found under *Settings -> Media*.
@@ -56,35 +59,41 @@ The plugin is ready to go. Now edit your posts and add video links to the "Featu
 
 == Changelog ==
 
-= 1.3 =
-* Added internationalization capabilities
-* Added German translation
-* Revamped video sizing
+= 1.4: 2013-03-15 =
+* __WP 3.5 Media Manager__ seamless integrated
+* Time-links now available for YouTube and Dailymotion (append #t=1m2s)
+* New `autoplay` setting
+* Specify your Dailymotion Syndication Key
+* Added `get_the_post_video_image` & `get_the_post_video_image_url`
+* Local videos no longer break when domain changes or attachment is edited
+* Better Featured Image handling
+
+= 1.3: 2013-01-16 =
+* __Internationalization__: Added German translations
 * Added customizations for YouTube and Dailymotion
-* Plenty better error handling
-* Added contextual help on media settings and post edit screen
-* Liveleak (experimental, they do not have any API)
+* Revamped video sizing
+* Better error handling
+* Contextual help on media settings and post edit screen
+* LiveLeak (very experimental, they have no API)
 
-= 1.2 =
-* __Added support for local videos__
-* Allow webM mime type for media upload
-* Added Media Settings link in plugin info
-* More notices/warnings
-* More JS
-* minimized JS and CSS
-* fixed some other stuff
+= 1.2: 2013-01-09 =
+* __Local Videos__: mp4, webm, ogg
+* More dynamic user interface
+* Minimized JS and CSS
 
-= 1.1 =
-* __Added Dailymotion__
-* fixed youtube 'start at specific time' embeds
-* overhaul of the interaction between Featured Videos and Featured Images
-* existing featured images will no longer be replaced by newly added featured videos in the administration interface
+= 1.1: 2012-12-16 =
+* __Dailymotion__
+* Fixed YouTube time-links
+* Enhanced interaction of Featured Videos & Featured Images
 
-= 1.0 =
+= 1.0: 2012-12-13 =
 * Release
 
 
 == Upgrade Notice ==
+
+= 1.4 =
+WP3.5 Media Manager, time-links...
 
 = 1.3 =
 Internationalization! More user friendly, more customizations.
@@ -106,22 +115,22 @@ Feature Dailymotion Videos on your posts!
 == Frequently Asked Questions ==
 
 = After adding the URL and saving the post I do not get any video? =
-Maybe the plugin does not recognize the URL. Take a look into the contextual help (button on the top right of the post edit screen). There is a list of tested URLs.
+Maybe the plugin does not recognize the URL. Take a look into the contextual help (button on the top right of the post edit screen). There is a list what the URLs should look like. If this does not help leave a note in the support forum.
 
 = How do I use my local videos? =
 Take a look into the contextual help (button on the top right of the post edit screen).
 
 = My theme uses Featured Images. Why are my videos not being displayed in place? =
 For the videos to be automatically displayed you need to define a Featured Image. This image will never be shown if a video is available.
-On the technical side your theme needs to feature [Post Thumbnails](http://codex.wordpress.org/Post_Thumbnails) and make use of `get_the_post_thumbnail()` or `the_post_thumbnail()`, because there is where the plugin hooks into.
+Beside this your theme needs to feature [Post Thumbnails](http://codex.wordpress.org/Post_Thumbnails) and make use of `get_the_post_thumbnail()` or `the_post_thumbnail()`, because these are the core functions the plugin hooks into.
 
 If the automatic integration does not work, you can tell me in the [Support Forum](http://wordpress.org/support/plugin/featured-video-plus) which theme you are using and I will take a look at it and might be able to develop a workaround.
 
 = How can I make the videos fit the theme? =
-Take a look at your media settings and try fixed sizes. For most installations the automatic sizing works fine. If tweaking does not help: [Tell me](http://wordpress.org/support/plugin/featured-video-plus) which theme you are using.
+Take a look at your media settings and try different fixed sizes. If tweaking those does not help: [Tell me](http://wordpress.org/support/plugin/featured-video-plus) which theme you are using.
 
-= What about other video portals? =
-Leave me a note in the support forums which you would like and I will consider adding them in the next release.
+= What about other video providers? =
+Leave me a note in the support forums which video platforms you would like to see in a feature release!
 
 = How can I translate the plugin? =
 Grap the [featured-video-plus.pot](https://github.com/ahoereth/featured-video-plus/blob/master/lng/featured-video-plus.pot) file, [translate it](http://urbangiraffe.com/articles/translating-wordpress-themes-and-plugins/) and post it in the [Support Forum](http://wordpress.org/support/plugin/featured-video-plus). It will very lik be shipped with the next version.

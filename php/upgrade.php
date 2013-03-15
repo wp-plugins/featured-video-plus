@@ -5,9 +5,9 @@
  * @since 1.2
  */
 function featured_video_plus_upgrade() {
-	$options = $options_org = get_option( 'fvp-settings', 'none' );
+	$options = $options_org = get_option( 'fvp-settings' );
 
-	if( !isset($options) || $options == 'none')
+	if( !isset($options['overwrite']) )
 		$version = '0';
 	elseif( !isset($options['version']) )
 		$version = '1.1';
@@ -21,13 +21,13 @@ function featured_video_plus_upgrade() {
 
 				$options = array(
 					'overwrite' => true,
-					'width' => 'auto',
-					'height' => 'auto',
-					'vimeo' => array(
-						'portrait' => 0,
-						'title' => 1,
-						'byline' => 1,
-						'color' => '00adef'
+					'width' 	=> 'auto',
+					'height' 	=> 'auto',
+					'vimeo' 	=> array(
+						'portrait' 	=> 0,
+						'title' 	=> 1,
+						'byline' 	=> 1,
+						'color' 	=> '00adef'
 					)
 				);
 
@@ -48,8 +48,6 @@ function featured_video_plus_upgrade() {
 			case '1.2':
 				$notice = isset($notice) ? $notice : 'upgrade_12';
 
-				$options['notice'] 	= $notice;
-				$options['reged'] 	= false;
 				$options['videojs'] = array(
 						'skin' => 'videojs' //videojs,moonfy,tubejs
 					);
@@ -61,42 +59,47 @@ function featured_video_plus_upgrade() {
 						'fs' 	=> 1
 					);
 				$options['dailymotion'] = array(
-						'foreground' => 'F7FFFD',
-						'highlight' => 'FFC300',
-						'background' => '171D1B',
-						'logo' 	 => 1,
-						'info' 	 => 1
+						'foreground' 	=> 'F7FFFD',
+						'highlight' 	=> 'FFC300',
+						'background' 	=> '171D1B',
+						'logo' 		=> 1,
+						'info' 		=> 1
 					);
 				$options['sizing'] = array(
-						'wmode'  => $options['width'],
-						'hmode'  => $options['height'],
-						'width'  => 560,
-						'height' => 315,
-						'align'  => 'left'
+						'wmode' 	=> $options['width'],
+						'hmode' 	=> $options['height'],
+						'width' 	=> 560,
+						'height' 	=> 315,
+						'align' 	=> 'left'
 					);
 				unset( $options['width'], $options['height'] );
 
+			case '1.3':
+				$notice = isset($notice) ? $notice : 'upgrade_13';
 
-				// this has to be refreshed in every version, stays last
-				$options['version'] = FVP_VERSION;
-				break;
+				$options['autoplay'] 					= 0;
+				$options['youtube']['logo'] 			= 1;
+				$options['dailymotion']['syndication'] 	= '';
+				$options['out'] 						= 0;
+
+				$options['align'] = $options['sizing']['wmode'] == 'auto' ? 'center' : $options['sizing']['align'];
+				unset( $options['sizing']['align'] );
+
+		// *************************************************************
+			$options['version'] = FVP_VERSION;
+			$options['reged'  ] = false;
+			break;
 		}
 
 		$featured_video_plus_notices = new featured_video_plus_notices();
 		add_action('admin_notices', array( &$featured_video_plus_notices, $notice ) );
 	}
 
-	// Logs Plugin Version, WordPress Version, WordPress Language once.
-	// Less than WordPress.org, but much more informative for future development
-	if( !isset($options['reged']) || !$options['reged'] || ($version != FVP_VERSION) ) {
-		$options['reged'] = false;
-		$response = wp_remote_post( 'http://fvp.ahoereth.yrnxt.com/fvp_reg.php', array('body' => array( 'fvp_version' => FVP_VERSION, 'wp_version' => get_bloginfo('version'), 'wp_language' => get_bloginfo('language'), 'fvp_notice' => isset($options['notice']) ? $options['notice'] : 'initial_activation' )));
-		if( !is_wp_error( $response ) && ($response['body'] == 'success.') )
-			$options['reged'] = true;
-	}
+	$options = $GLOBALS['featured_video_plus_backend']->featured_video_plus_notify($options);
 
 	if( $options != $options_org )
 		update_option( 'fvp-settings', $options );
+
 }
 
 /**
@@ -108,6 +111,27 @@ function featured_video_plus_upgrade() {
  * @since 1.2
  */
 class featured_video_plus_notices {
+	private $pluginpage;
+
+	/**
+	 * Initialize class variables.
+	 *
+	 * @since 1.4
+	 */
+	function __construct(){
+		$this->pluginpage = 'http://wordpress.org/extend/plugins/featured-video-plus#plugin-title';
+	}
+
+	/**
+	 * Upgrade notification 1.3 to current version
+	 *
+	 * @since 1.4
+	 */
+	function upgrade_13() {
+		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features a seamless <strong>WP3.5 Media Manager</strong> integration, time-links (#t=4m2s) for YouTube and Dailymotion, some new options and new PHP functions for developers.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
+		echo "</p></div>\n";
+	}
 
 	/**
 	 * Upgrade notification 1.2 to current version
@@ -116,7 +140,7 @@ class featured_video_plus_notices {
 	 */
 	function upgrade_12() {
 		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
-		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features more customization settings, internationalization, better error handling and experimental LiveLeak integration.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="http://wordpress.org/extend/plugins/featured-video-plus/" target="_blank">', '</a>');
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features a seamless WP3.5 Media Manager integration, time-links (#t=4m2s) for YouTube and Dailymotion, more customization settings and internationalization.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
 		echo "</p></div>\n";
 	}
 
@@ -127,7 +151,7 @@ class featured_video_plus_notices {
 	 */
 	function upgrade_11() {
 		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
-		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp;'.__('%s now supports <strong>Local Videos</strong>, LiveLeak integration (experimental), many more customization settings and better error handling.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="http://wordpress.org/extend/plugins/featured-video-plus/" traget="_blank">','</a>');
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp;'.__('%s features support for <strong>Local Videos</strong>, a seamless WP3.5 Media Manager integration, time-links (#t=4m2s) for YouTube and Dailymotion and many more customization settings.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" traget="_blank">','</a>');
 		echo "</p></div>\n";
 	}
 

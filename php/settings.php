@@ -3,7 +3,7 @@
  * Class containing everything regarding plugin settings on media-settings.php
  *
  * @author ahoereth
- * @version 2013/01/09
+ * @version 2013/02/12
  * @see ../featured_video_plus.php
  * @since 1.3
  */
@@ -18,10 +18,12 @@ class featured_video_plus_settings {
 	 * @since 1.0
 	 */
 	function settings_init() {
-		add_settings_section('fvp-settings-section', 		'Featured Videos', 										array( &$this, 'settings_content' ), 	'media');
+		add_settings_section('fvp-settings-section', 	__('Featured Videos', 'featured-video-plus'), 				array( &$this, 'settings_content' ), 	'media');
 
 		add_settings_field('fvp-settings-overwrite', 	__('Replace Featured Images', 'featured-video-plus'), 		array( &$this, 'settings_overwrite' ), 	'media', 'fvp-settings-section');
+		add_settings_field('fvp-settings-autoplay', 	__('Autoplay', 'featured-video-plus'), 						array( &$this, 'settings_autoplay' ), 	'media', 'fvp-settings-section');
 		add_settings_field('fvp-settings-sizing', 		__('Video Sizing', 'featured-video-plus'), 					array( &$this, 'settings_sizing' ), 	'media', 'fvp-settings-section');
+		add_settings_field('fvp-settings-align', 		__('Video Align', 'featured-video-plus'), 					array( &$this, 'settings_align' ), 		'media', 'fvp-settings-section');
 		//add_settings_field('fvp-settings-videojs', 		__('VIDEOJS Player Options', 'featured-video-plus'), 		array( &$this, 'settings_videojs' ), 	'media', 'fvp-settings-section');
 		add_settings_field('fvp-settings-youtube', 		__('YouTube Player Options', 'featured-video-plus'), 		array( &$this, 'settings_youtube' ), 	'media', 'fvp-settings-section');
 		add_settings_field('fvp-settings-vimeo', 		__('Vimeo Player Options', 'featured-video-plus'), 			array( &$this, 'settings_vimeo' ), 		'media', 'fvp-settings-section');
@@ -56,7 +58,9 @@ class featured_video_plus_settings {
 		$overwrite = isset($options['overwrite']) ? $options['overwrite'] : false;
 ?>
 
-<input type="radio" name="fvp-settings[overwrite]" id="fvp-settings-overwrite-1" value="true" 	<?php checked( true, 	$overwrite, true ) ?>/><label for="fvp-settings-overwrite-1">&nbsp;<?php _e('yes', 'featured-video-plus'); ?>&nbsp;<span style="font-style: italic;">(<?php _e('default', 'featured-video-plus'); ?>)</span></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<span class="fvp_radio_bumper">
+	<input type="radio" name="fvp-settings[overwrite]" id="fvp-settings-overwrite-1" value="true" 	<?php checked( true, 	$overwrite, true ) ?>/><label for="fvp-settings-overwrite-1">&nbsp;<?php _e('yes', 'featured-video-plus'); ?>&nbsp;<span style="font-style: italic;">(<?php _e('default', 'featured-video-plus'); ?>)</span></label>
+</span>
 <input type="radio" name="fvp-settings[overwrite]" id="fvp-settings-overwrite-2" value="false" 	<?php checked( false, 	$overwrite, true ) ?>/><label for="fvp-settings-overwrite-2">&nbsp;<?php _e('no', 'featured-video-plus'); ?></label>
 <p class="description"><?php _e('If a Featured Video is available it can be displayed in place of the Featured Image. Still, a Featured Image is required.', 'featured-video-plus'); ?></p>
 
@@ -66,6 +70,25 @@ if( !current_theme_supports('post-thumbnails') )
 	echo '<p class="'.$class.'description"><span style="font-weight: bold;">'.__('The current theme does not support Featured Images', 'featured-video-plus').':</span>&nbsp;'.__('To display Featured Videos you need to use the <code>Shortcode</code> or <code>PHP functions</code>.', 'featured-video-plus').'</p>'."\n";
 
 }
+
+
+	/**
+	 * Displays the setting if videos should autoplay when a single post/page is being viewed.
+	 *
+	 * @since 1.4
+	 */
+	function settings_autoplay() {
+		$options 	= get_option( 'fvp-settings' );
+		$autoplay 	= isset($options['autoplay']) ? $options['autoplay'] : 0;
+?>
+
+<span class="fvp_radio_bumper">
+	<input type="radio" name="fvp-settings[autoplay]" id="fvp-settings-autoplay-1" value="true" 	<?php checked( 1, 	$autoplay ) ?>/><label for="fvp-settings-autoplay-1">&nbsp;<?php _e('yes', 'featured-video-plus'); ?></label>
+</span>
+<input type="radio" name="fvp-settings[autoplay]" id="fvp-settings-autoplay-2" value="false" 	<?php checked( 0, 	$autoplay ) ?>/><label for="fvp-settings-autoplay-2">&nbsp;<?php _e('no', 'featured-video-plus'); ?>&nbsp;<span style="font-style: italic;">(<?php _e('default', 'featured-video-plus'); ?>)</span></label>
+<p class="description"><?php _e('YouTube, Vimeo and Dailymotion videos can autoplay when a single post/page is being viewed.', 'featured-video-plus'); ?></p>
+
+<?php }
 
 	/**
 	 * Displays the setting if the plugin should fit the width of the videos automatically or use fixed widths.
@@ -79,8 +102,7 @@ if( !current_theme_supports('post-thumbnails') )
 		$width = isset($options['sizing']['width' ]) ? $options['sizing']['width' ] : 560;
 		$height= isset($options['sizing']['height']) ? $options['sizing']['height'] : 315;
 		$wclass= $wmode == 'auto' ? ' fvp_readonly' : '';
-		$hclass= $hmode == 'auto' ? ' fvp_readonly' : '';
-		$align = isset($options['sizing']['align']) ? $options['sizing']['align'] : 'left'; ?>
+		$hclass= $hmode == 'auto' ? ' fvp_readonly' : ''; ?>
 
 <span class="fvp_toggle_input">
 	<label class="fvp_grouplable"><?php _e('Width', 'featured-video-plus'); ?>:</label>
@@ -104,17 +126,23 @@ if( !current_theme_supports('post-thumbnails') )
 <p class="description">
 	<?php _e('When using <code>auto</code> the video will be adjusted to fit it\'s parent element while sticking to it\'s ratio. Using a <code>fixed</code> height and width might result in <em>not so pretty</em> black bars.', 'featured-video-plus'); ?>
 </p>
-<span class="fvp_toggle_input">
-	<label class="fvp_grouplable"><?php _e('Align', 'featured-video-plus'); ?>:</label>
-	<span class="fvp_grouppart1">
-		<input type="radio" name="fvp-settings[sizing][align]" id="fvp-settings-align-1" value="left" 	<?php checked( 'left', 	$align, true ) ?>/><label for="fvp-settings-align-1">&nbsp;<?php _e('left', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-		<input type="radio" name="fvp-settings[sizing][align]" id="fvp-settings-align-2" value="center" <?php checked( 'center',$align, true ) ?>/><label for="fvp-settings-align-2">&nbsp;<?php _e('center', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-		<input type="radio" name="fvp-settings[sizing][align]" id="fvp-settings-align-2" value="right"	<?php checked( 'right', $align, true ) ?>/><label for="fvp-settings-align-3">&nbsp;<?php _e('right', 'featured-video-plus'); ?></label>
-	</span>
-</span>
 
 <?php }
 
+	/**
+	 * How should the videos be aligned? Only interesting when wmode is set to fixed.
+	 * Feature integrated in 1.3, got it own function in 1.4
+	 *
+	 * @since 1.4
+	 */
+	function settings_align() {
+		$align = isset($options['align']) ? $options['align'] : 'center'; ?>
+
+<input type="radio" name="fvp-settings[align]" id="fvp-settings-align-1" value="left" 	<?php checked( 'left', 	$align, true ) ?>/><label for="fvp-settings-align-1">&nbsp;<?php _e('left', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="radio" name="fvp-settings[align]" id="fvp-settings-align-2" value="center" <?php checked( 'center',$align, true ) ?>/><label for="fvp-settings-align-2">&nbsp;<?php _e('center', 'featured-video-plus'); ?>&nbsp;<span style="font-style: italic;">(<?php _e('default', 'featured-video-plus'); ?>)</span></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="radio" name="fvp-settings[align]" id="fvp-settings-align-3" value="right"	<?php checked( 'right', $align, true ) ?>/><label for="fvp-settings-align-3">&nbsp;<?php _e('right', 'featured-video-plus'); ?></label>
+
+<?php }
 	/**
 	 * Displays the settings to style the VIDEOJS player.
 	 *
@@ -122,6 +150,8 @@ if( !current_theme_supports('post-thumbnails') )
 	 * @see http://jlofstedt.com/moonify/
 	 * @see http://videojs.com/
 	 * @since 1.3
+	 *
+	 * NOTE: NOT IN USE YET!
 	 */
 	function settings_videojs() {
 		$options = get_option( 'fvp-settings' );
@@ -146,15 +176,18 @@ if( !current_theme_supports('post-thumbnails') )
 		$youtube['theme'] 	= isset($options['youtube']['theme']) 	? $options['youtube']['theme'] 	: 'dark';
 		$youtube['color'] 	= isset($options['youtube']['color']) 	? $options['youtube']['color'] 	: 'red';
 		$youtube['info'] 	= isset($options['youtube']['info']) 	? $options['youtube']['info'] 	: 1;
+		$youtube['logo'] 	= isset($options['youtube']['logo']) 	? $options['youtube']['logo'] 	: 1;
 		$youtube['rel'] 	= isset($options['youtube']['rel']) 	? $options['youtube']['rel'] 	: 1;
 		$youtube['fs'] 		= isset($options['youtube']['fs']) 		? $options['youtube']['fs'] 	: 1; ?>
 
 <input type="checkbox" name="fvp-settings[youtube][theme]" 	id="fvp-settings-youtube-theme" value="light" 	<?php checked( 'light', $youtube['theme'], 	1 ) ?>/><label for="fvp-settings-youtube-theme">&nbsp;<?php _e('Light Theme', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="checkbox" name="fvp-settings[youtube][color]" 	id="fvp-settings-youtube-color" value="white" 	<?php checked( 'white', $youtube['color'], 	1 ) ?>/><label for="fvp-settings-youtube-color">&nbsp;<?php _e('White Progressbar', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="checkbox" name="fvp-settings[youtube][info]" 	id="fvp-settings-youtube-info" 	value="true" 	<?php checked( 1, 		$youtube['info'], 	1 ) ?>/><label for="fvp-settings-youtube-info">&nbsp;<?php _e('Show Info', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="checkbox" name="fvp-settings[youtube][info]" 	id="fvp-settings-youtube-info" 	value="true" 	<?php checked( 1, 		$youtube['info'], 	1 ) ?>/><label for="fvp-settings-youtube-info">&nbsp;<?php _e('Info', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 <input type="checkbox" name="fvp-settings[youtube][fs]" 	id="fvp-settings-youtube-fs" 	value="true" 	<?php checked( 1, 		$youtube['fs'], 	1 ) ?>/><label for="fvp-settings-youtube-fs">&nbsp;<?php _e('Fullscreen Button', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="checkbox" name="fvp-settings[youtube][rel]" 	id="fvp-settings-youtube-rel" 	value="true" 	<?php checked( 1, 		$youtube['rel'], 	1 ) ?>/><label for="fvp-settings-youtube-rel">&nbsp;<?php _e('Related Videos', 'featured-video-plus'); ?></label>
-
+<input type="checkbox" name="fvp-settings[youtube][rel]" 	id="fvp-settings-youtube-rel" 	value="true" 	<?php checked( 1, 		$youtube['rel'], 	1 ) ?>/><label for="fvp-settings-youtube-rel">&nbsp;<?php _e('Related Videos', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="checkbox" name="fvp-settings[youtube][color]" 	id="fvp-settings-youtube-color" value="white" 	<?php checked( 'white', $youtube['color'], 	1 ) ?>/><label for="fvp-settings-youtube-color">&nbsp;<?php _e('White Progressbar', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<span id="youtube_logoinput_wrapper"<?php if($youtube['color'] != 'red') echo ' class="fvp_hidden"'; ?>>
+	<input type="checkbox" name="fvp-settings[youtube][logo]" 	id="fvp-settings-youtube-logo" 	value="true" 	<?php checked( 1, 		$youtube['logo'], 	1 ) ?>/><label for="fvp-settings-youtube-logo">&nbsp;<?php _e('Logo', 'featured-video-plus'); ?></label>
+</span>
 <?php
 	}
 
@@ -200,12 +233,14 @@ if( !current_theme_supports('post-thumbnails') )
 		$options = get_option( 'fvp-settings' );
 		$dailymotion['logo'] 		= isset($options['dailymotion']['logo']) 		? $options['dailymotion']['logo'] 		: 1;
 		$dailymotion['info'] 		= isset($options['dailymotion']['info']) 		? $options['dailymotion']['info'] 		: 1;
+		$dailymotion['synd'] 		= isset($options['dailymotion']['synd']) 		? $options['dailymotion']['syndication']: '';
 		$dailymotion['foreground'] 	= isset($options['dailymotion']['foreground']) 	? $options['dailymotion']['foreground'] : 'f7fffd';
 		$dailymotion['highlight' ] 	= isset($options['dailymotion']['highlight' ]) 	? $options['dailymotion']['highlight' ] : 'ffc300';
 		$dailymotion['background'] 	= isset($options['dailymotion']['background']) 	? $options['dailymotion']['background'] : '171d1b'; ?>
 
-	<input type="checkbox" name="fvp-settings[dailymotion][logo]" id="fvp-settings-dailymotion-logo" value="display" <?php checked( 1, $dailymotion['logo'], 1 ) ?>/><label for="fvp-settings-dailymotion-logo">&nbsp;<?php _e('Logo', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="checkbox" name="fvp-settings[dailymotion][info]" id="fvp-settings-dailymotion-info" value="display" <?php checked( 1, $dailymotion['info'], 1 ) ?>/><label for="fvp-settings-dailymotion-info">&nbsp;<?php _e('Videoinfo', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="checkbox" 	name="fvp-settings[dailymotion][logo]" id="fvp-settings-dailymotion-logo" value="display" <?php checked( 1, $dailymotion['logo'], 1 ) ?>/>	<label for="fvp-settings-dailymotion-logo">&nbsp;<?php _e('Logo', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="checkbox" 	name="fvp-settings[dailymotion][info]" id="fvp-settings-dailymotion-info" value="display" <?php checked( 1, $dailymotion['info'], 1 ) ?>/>	<label for="fvp-settings-dailymotion-info">&nbsp;<?php _e('Videoinfo', 'featured-video-plus'); ?></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="text" 		name="fvp-settings[dailymotion][synd]" id="fvp-settings-dailymotion-synd" value="<?php echo $dailymotion['synd']; ?>" size="6" />	<label for="fvp-settings-dailymotion-synd">&nbsp;<?php _e('Syndication Key', 'featured-video-plus'); ?></label>
 	<br />
 	<span class="color-picker" style="position: relative;<?php if( wp_style_is( 'wp-color-picker', 'done' ) ) echo ' top: .6em;'; ?>" >
 		<input type="text" name="fvp-settings[dailymotion][foreground]" id="fvp-settings-dailymotion-foreground" value="#<?php echo $dailymotion['foreground'] ?>" data-default-color="#f7fffd" />
@@ -222,6 +257,7 @@ if( !current_theme_supports('post-thumbnails') )
 		<label for="fvp-settings-dailymotion-background" style="display: none;">&nbsp;<?php _e('Background', 'featured-video-plus'); ?></label>
 		<?php if( !wp_style_is('wp-color-picker', 'registered' ) ) { ?><div class="fvp_colorpicker" id="fvp-settings-dailymotion-background-colorpicker"></div><?php } ?>
 	</span>
+	<br />
 <?php
 	}
 
@@ -230,15 +266,23 @@ if( !current_theme_supports('post-thumbnails') )
 	 *
 	 * @since 1.0
 	 */
-	function settings_rate() { ?>
+	function settings_rate() {
+		$options = get_option( 'fvp-settings' );
+		$optout = isset($options['out']) ? $options['out'] : false;
+		echo '<p>';
+		printf(
+			__('If you have found a bug or are missing a specific video service, please %slet me know%s in the support forum. Elsewise, if you like the plugin: Please %srate it!%s', 'featured-video-plus'),
+			'<a href="http://wordpress.org/support/plugin/featured-video-plus#plugin-title" 				title="Featured Video Plus Support Forum on WordPress.org" 	target="_blank" style="font-weight: bold;">', '</a>',
+			'<a href="http://wordpress.org/support/view/plugin-reviews/featured-video-plus#plugin-title" 	title="Rate Featured Video Plus on WordPress.org" 			target="_blank" style="font-weight: bold;">', '</a>'
+		);
+		echo '</p>';
+		echo '<p>';
+		_e('The plugin logs it\'s version, the WordPress version and WordPress language for internal statistics. Those help for future plugin development.', 'featured-video-plus');
+		echo '<br />';
+		_e('No personal user information is being collected. Still, you can easily Opt-Out and have the data deleted:', 'featured-video-plus');
+		echo '&nbsp;<input type="checkbox" name="fvp-settings[out]" id="fvp-settings-out" value="true"'.checked( 1, $optout, false ).' />';
 
-<p>
-	<?php _e('Found a bug or <strong>missing a specific video service</strong>?', 'featured-video-plus'); ?>
-	<a href="http://wordpress.org/extend/plugins/featured-video/" title="Featured Video Plus Support Forum on wordpress.org" style="font-weight: bold;">Leave a note</a> in the support forum!<br />
-	<?php _e('Do you like the plugin?', 'featured-video-plus'); ?>&nbsp;<a href="http://wordpress.org/extend/plugins/featured-video-plus/" title="Featured Video Plus on wordpress.org" style="font-weight: bold;"><?php _e('rate it', 'featured-video-plus'); ?></a>.
-</p>
-
-<?php }
+	}
 
 	/**
 	 * Function through which all settings are passed before they are saved. Validate the data.
@@ -250,17 +294,26 @@ if( !current_theme_supports('post-thumbnails') )
 		$numbers = '#[0-9]{1,4}#';
 		$options  = get_option( 'fvp-settings' );
 
-		// General
+		// Overwrite
 		$options['overwrite'] 	= isset($input['overwrite']) && $input['overwrite'] == 'true' ? true : false;
 
 		// Sizing
-		preg_match($numbers, $input['sizing']['width' ]['fixed'], $width );
-		preg_match($numbers, $input['sizing']['height']['fixed'], $height);
-		$options['sizing']['width' ] = isset($width[ 0]) ? $width[ 0] : 560;
-		$options['sizing']['height'] = isset($height[0]) ? $height[0] : 315;
+		if(isset($input['sizing']['width' ]['fixed'])) {
+			preg_match($numbers, $input['sizing']['width' ]['fixed'], $width );
+			$options['sizing']['width' ] = isset($width[ 0]) ? $width[ 0] : 560;
+		}
+		if(isset($input['sizing']['height' ]['fixed'])) {
+			preg_match($numbers, $input['sizing']['height']['fixed'], $height);
+			$options['sizing']['height'] = isset($height[0]) ? $height[0] : 315;
+		}
 		$options['sizing']['wmode' ] = isset($input['sizing']['width' ]['auto'])?  'auto' 			: 'fixed';
 		$options['sizing']['hmode' ] = isset($input['sizing']['height' ]['auto'])? 'auto' 			: 'fixed';
-		$options['sizing']['align' ] = isset($input['sizing']['align']) ? $input['sizing']['align'] : 'left';
+
+		// Align
+		$options['align' ] = isset($input['align']) ? $input['align'] : 'center';
+
+		// Autoplay
+		$options['autoplay'] = isset($input['autoplay'])  && $input['autoplay'] == 'true' ? 1 : 0;
 
 		// VIDEOJS
 		//$options['videojs']['skin'] = isset( $input['videojs']['skin'] ) ? $input['videojs']['skin'] : 'videojs';
@@ -269,6 +322,7 @@ if( !current_theme_supports('post-thumbnails') )
 		$options['youtube']['theme'] 	= isset($input['youtube']['theme']) && ( $input['youtube']['theme']  == 'light' ) ? 'light' : 'dark';
 		$options['youtube']['color'] 	= isset($input['youtube']['color']) && ( $input['youtube']['color']  == 'white' ) ? 'white' : 'red';
 		$options['youtube']['info'] 	= isset($input['youtube']['info'])	&& ( $input['youtube']['info'] 	 == 'true' 	) ? 1 		: 0;
+		$options['youtube']['logo'] 	= isset($input['youtube']['logo'])	&& ( $input['youtube']['logo'] 	 == 'true' 	) ? 1 		: 0;
 		$options['youtube']['rel'] 		= isset($input['youtube']['rel'])	&& ( $input['youtube']['rel'] 	 == 'true' 	) ? 1 		: 0;
 		$options['youtube']['fs'] 		= isset($input['youtube']['fs'])	&& ( $input['youtube']['fs'] 	 == 'true' 	) ? 1 		: 0;
 
@@ -276,18 +330,27 @@ if( !current_theme_supports('post-thumbnails') )
 		$options['vimeo']['portrait'] 	= isset($input['vimeo']['portrait'])&& ( $input['vimeo']['portrait'] == 'display' ) ? 1 : 0;
 		$options['vimeo']['title'] 		= isset($input['vimeo']['title']) 	&& ( $input['vimeo']['title'] 	 == 'display' ) ? 1 : 0;
 		$options['vimeo']['byline'] 	= isset($input['vimeo']['byline']) 	&& ( $input['vimeo']['byline'] 	 == 'display' ) ? 1 : 0;
+
 		if( isset($options['vimeo']['color']) ) preg_match($hexcolor, $input['vimeo']['color'], $vimeocolor);
 		$options['vimeo']['color'] = isset($vimeocolor[1]) && !empty($vimeocolor[1]) ? $vimeocolor[1] : '00adef';
 
 		// Dailymotion
 		$options['dailymotion']['logo'] = isset($input['dailymotion']['logo']) && ( $input['dailymotion']['logo'] == 'display' ) ? 1 : 0;
 		$options['dailymotion']['info'] = isset($input['dailymotion']['info']) && ( $input['dailymotion']['info'] == 'display' ) ? 1 : 0;
+		$options['dailymotion']['syndication'] = isset($input['dailymotion']['synd']) && !empty($input['dailymotion']['synd']) ? $input['dailymotion']['synd'] : '';
+
 		if( isset($options['dailymotion']['foreground']) ) preg_match($hexcolor, $input['dailymotion']['foreground'], $dm_foreground);
-		$options['dailymotion']['foreground'] 	= isset($dm_foreground[1]) && !empty($dm_foreground[1])? $dm_foreground[1] : 'f7fffd';
 		if( isset($options['dailymotion']['highlight'])  ) preg_match($hexcolor, $input['dailymotion']['highlight'],  $dm_highlight);
-		$options['dailymotion']['highlight'] 	= isset($dm_highlight[1])  && !empty($dm_highlight[1]) ? $dm_highlight[1] 	: 'ffc300';
 		if( isset($options['dailymotion']['background']) ) preg_match($hexcolor, $input['dailymotion']['background'], $dm_background);
+		$options['dailymotion']['foreground'] 	= isset($dm_foreground[1]) && !empty($dm_foreground[1])? $dm_foreground[1] : 'f7fffd';
+		$options['dailymotion']['highlight'] 	= isset($dm_highlight[ 1]) && !empty($dm_highlight[ 1])? $dm_highlight[ 1] : 'ffc300';
 		$options['dailymotion']['background'] 	= isset($dm_background[1]) && !empty($dm_background[1])? $dm_background[1] : '171d1b';
+
+		// Opt-Out
+		if( isset($input['out']) && $input['out'] == 'true' && !$options['out'] )
+			$options = $GLOBALS['featured_video_plus_backend']->featured_video_plus_notify($options, 1 );
+		elseif( 	!isset($input['out']) && isset($options['out']) && $options['out'] )
+			$options = $GLOBALS['featured_video_plus_backend']->featured_video_plus_notify($options, 0 );
 
 		return $options;
 	}
@@ -301,29 +364,37 @@ if( !current_theme_supports('post-thumbnails') )
 		$this->help_shortcode = '
 <ul>
 	<li>
-		<code>[featured-video]</code><br />
+		<code>[featured-video-plus]</code><br />
 		<span style="padding-left: 5px;">'.__('Displays the video in its default size.', 'featured-video-plus').'</span>
 	</li>
 	<li>
-		<code>[featured-video width=560]</code><br />
+		<code>[featured-video-plus width=560]</code><br />
 		<span style="padding-left: 5px;">'.__('Displays the video with an width of 300 pixel. Height will be fitted to the aspect ratio.', 'featured-video-plus').'</span>
 	</li>
 	<li>
-		<code>[featured-video width=560 height=315]</code><br />
+		<code>[featured-video-plus width=560 height=315]</code><br />
 		<span style="padding-left: 5px;">'.__('Displays the video with an fixed width and height.', 'featured-video-plus').'</span>
 	</li>
 </ul>'."\n";
 
 		$this->help_functions ='
-<ul>
-	<li><code>the_post_video(array(width, height))</code></li>
-	<li><code>has_post_video(post_id = null)</code></li>
-	<li><code>get_the_post_video(post_id = null, array(width, height))</code></li>
+<ul class="fvp_code_list">
+	<li><code>the_post_video( $size )</code></li>
+	<li><code>has_post_video( $post_id )</code></li>
+	<li><code>get_the_post_video( $post_id, $size )</code></li>
+	<li><code>get_the_post_video_image_url( $post_id )</code></li>
+	<li><code>get_the_post_video_image( $post_id )</code></li>
 </ul>
 <p>
-	'.sprintf(__('All parameters are optional. If %s the current post\'s id will be used.', 'featured-video-plus'), '<code>post_id == null</code>').'<br />
-	'.sprintf(__('The functions are implemented corresponding to the original %sFeatured Image functions%s: They are intended to be used and to act the same way.', 'featured-video-plus'), '<a href="http://codex.wordpress.org/Post_Thumbnails#Function_Reference" title="Post Thumbnails Function Reference">', '</a>').'
-</p>'."\n";
+	'.sprintf(__('All parameters are optional. If %s the current post\'s id will be used. %s is either a string keyword (thumbnail, medium, large or full) or a 2-item array representing width and height in pixels, e.g. array(32,32).', 'featured-video-plus'), '<code>post_id == null</code>', '<code>$size</code>').'<br />
+</p>
+<p style="margin-bottom: 0;">
+	'.sprintf(__('The functions are implemented corresponding to the original %sfunctions%s: They are intended to be used and to act the same way. Take a look into the WordPress Codex for further guidance:', 'featured-video-plus'), '<a href="http://codex.wordpress.org/Post_Thumbnails#Function_Reference" target="_blank">'.__('Featured Image').'&nbsp;', '</a>').'
+</p>
+<ul class="fvp_code_list" style="margin-top: 0;">
+	<li><code><a href="http://codex.wordpress.org/Function_Reference/the_post_thumbnail" target="_blank">get_the_post_thumbnail</a></code></li>
+	<li><code><a href="http://codex.wordpress.org/Function_Reference/wp_get_attachment_image" target="_blank">wp_get_attachment_image</a></code></li>
+</ul>'."\n";
 	}
 
 	/**
