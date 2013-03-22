@@ -4,7 +4,7 @@ Plugin Name: Featured Video Plus
 Plugin URI: https://github.com/ahoereth/featured-video-plus
 Description: Add Featured Videos to your posts and pages.
 Author: Alexander Höreth
-Version: 1.4
+Version: 1.5
 Author URI: http://ahoereth.yrnxt.com
 License: GPL2
 
@@ -27,7 +27,7 @@ License: GPL2
 */
 
 if (!defined('FVP_VERSION'))
-	define('FVP_VERSION', '1.4');
+	define('FVP_VERSION', '1.5');
 
 // symlink proof
 $pathinfo = pathinfo(dirname(plugin_basename(__FILE__)));
@@ -60,8 +60,9 @@ if( is_admin() ) {
 	add_action( 'admin_init', 'featured_video_plus_upgrade' );
 
 	// admin meta box
-	add_action('admin_menu', array( &$featured_video_plus_backend, 'metabox_register' ) );
-	add_action('save_post',  array( &$featured_video_plus_backend, 'metabox_save' )	 );
+	add_action('admin_menu', 		array( &$featured_video_plus_backend, 'metabox_register' ) );
+	add_action('save_post', 		array( &$featured_video_plus_backend, 'metabox_save' 	 ) );
+	add_action('wp_ajax_fvp_ajax', 	array( &$featured_video_plus_backend, 'ajax' 			 ) );
 
 	// enqueue admin scripts and styles
 	add_action('admin_enqueue_scripts', array( &$featured_video_plus_backend, 	'enqueue' ) );

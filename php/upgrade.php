@@ -77,13 +77,34 @@ function featured_video_plus_upgrade() {
 			case '1.3':
 				$notice = isset($notice) ? $notice : 'upgrade_13';
 
-				$options['autoplay'] 					= 0;
-				$options['youtube']['logo'] 			= 1;
-				$options['dailymotion']['syndication'] 	= '';
 				$options['out'] 						= 0;
+				$options['autoplay'] 				= 0;
+				$options['youtube']['logo'] = 1;
+				$options['dailymotion']['syndication'] = '';
 
 				$options['align'] = $options['sizing']['wmode'] == 'auto' ? 'center' : $options['sizing']['align'];
 				unset( $options['sizing']['align'] );
+
+			case '1.4':
+				$notice = isset($notice) ? $notice : 'upgrade_14';
+
+				$options['youtube']['wmode'] 				= 'auto';
+				$options['local']['videojs']['js'] 	= true;
+				$options['local']['videojs']['css'] = true;
+				$options['local']['videojs']['cdn'] = false;
+				unset($options['videojs']);
+
+				// update video data ('attr' to 'time') and fix serialization
+				$ids = $GLOBALS['featured_video_plus']->get_post_by_custom_meta('_fvp_video');
+				foreach( $ids as $id ) {
+					$meta = maybe_unserialize(get_post_meta( $id, '_fvp_video', true ));
+					if( isset( $meta['attr'] ) ) {
+						$meta['time'] = $meta['attr'];
+						unset($meta['attr']);
+						update_post_meta($id, '_fvp_video', $meta);
+					}
+				}
+
 
 		// *************************************************************
 			$options['version'] = FVP_VERSION;
@@ -123,13 +144,24 @@ class featured_video_plus_notices {
 	}
 
 	/**
+	 * Upgrade notification 1.4 to current version
+	 *
+	 * @since 1.5
+	 */
+	function upgrade_14() {
+		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s <strong>ajax</strong>ifies the Featured Video box and introduces new options (especially for the local video player).', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
+		echo "</p></div>\n";
+	}
+
+	/**
 	 * Upgrade notification 1.3 to current version
 	 *
 	 * @since 1.4
 	 */
 	function upgrade_13() {
 		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
-		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features a seamless <strong>WP3.5 Media Manager</strong> integration, time-links (#t=4m2s) for YouTube and Dailymotion, some new options and new PHP functions for developers.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features a seamless <strong>WP3.5 Media Manager</strong> integration, an all new <strong>ajax</strong>ified metabox, time-links (#t=4m2s) for YouTube and Dailymotion, new PHP functions for developers and more.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
 		echo "</p></div>\n";
 	}
 
@@ -140,7 +172,7 @@ class featured_video_plus_notices {
 	 */
 	function upgrade_12() {
 		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
-		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features a seamless WP3.5 Media Manager integration, time-links (#t=4m2s) for YouTube and Dailymotion, more customization settings and internationalization.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp'.__('%s features a seamless WP3.5 Media Manager integration, an ajaxified metabox, time-links (#t=4m2s) for YouTube and Dailymotion, more customization settings and internationalization.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" target="_blank">', '</a>');
 		echo "</p></div>\n";
 	}
 
@@ -151,7 +183,7 @@ class featured_video_plus_notices {
 	 */
 	function upgrade_11() {
 		echo "\n" . '<div class="updated" id="fvp_activation_notification"><p>';
-		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp;'.__('%s features support for <strong>Local Videos</strong>, a seamless WP3.5 Media Manager integration, time-links (#t=4m2s) for YouTube and Dailymotion and many more customization settings.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" traget="_blank">','</a>');
+		printf(__('Featured Video Plus was <strong>upgraded</strong>.', 'featured-video-plus').'&nbsp;'.__('%s features support for <strong>Local Videos</strong>, a seamless WP3.5 Media Manager integration, an ajaxified metabox, time-links (#t=4m2s) for YouTube and Dailymotion and many more customization settings.', 'featured-video-plus').'&nbsp;'.__('If you like the plugin, please %srate it%s.', 'featured-video-plus'), '<strong>Version&nbsp;'.FVP_VERSION.'</strong>', '<a href="'.$this->pluginpage.'" traget="_blank">','</a>');
 		echo "</p></div>\n";
 	}
 

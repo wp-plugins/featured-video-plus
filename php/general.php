@@ -20,12 +20,18 @@ class featured_video_plus {
 	public function enqueue($hook_suffix) {
 		// just required on post.php
 		if( !is_admin() || ( $hook_suffix == 'post.php' && isset($_GET['post']) ) ) {
+			$options = get_option( 'fvp-settings' );
 
 			// http://videojs.com/
-			wp_enqueue_script( 'videojs', 'http://vjs.zencdn.net/c/video.js', array(), FVP_VERSION, false );
-			wp_enqueue_style(  'videojs', 'http://vjs.zencdn.net/c/video-js.css', array(), FVP_VERSION, false );
+			if( $options['local']['videojs']['js'] )
+				if( $options['local']['videojs']['cdn'] )
+					 wp_enqueue_script( 'videojs', 'http://vjs.zencdn.net/c/video.js', 		array(), FVP_VERSION, false );
+				else wp_enqueue_script( 'videojs', FVP_URL . 'js/videojs-min.js', 			array(), FVP_VERSION, false );
+			if( $options['local']['videojs']['css'] )
+				if( $options['local']['videojs']['cdn'] )
+					 wp_enqueue_style(  'videojs', 'http://vjs.zencdn.net/c/video-js.css', 	array(), FVP_VERSION, false );
+				else wp_enqueue_style(  'videojs', FVP_URL . 'css/videojs-min.css', 			array(), FVP_VERSION, false );
 
-			$options = get_option( 'fvp-settings' );
 			if( $options['sizing']['wmode'] == 'auto' )
 				wp_enqueue_script('fvp_fitvids', FVP_URL . 'js/jquery.fitvids_fvp-min.js', array( 'jquery' ), FVP_VERSION, true ); 	// production
 				//wp_enqueue_script('fvp_fitvids', FVP_URL . 'js/jquery.fitvids_fvp.js', array( 'jquery' ), FVP_VERSION, true ); 		// development
@@ -48,7 +54,7 @@ class featured_video_plus {
 		if( !has_post_video($post_id) )
 			return false;
 
-		$meta 	= unserialize( get_post_meta($post_id, '_fvp_video', true) );
+		$meta 	= get_post_meta($post_id, '_fvp_video', true);
 		$options= get_option( 'fvp-settings' );
 
 		$size 	= $this->get_size($size);
@@ -72,7 +78,7 @@ class featured_video_plus {
 					$embed = "\n\t".'<video class="video-js vjs-default-skin" controls preload="auto" width="'.$width.'" height="'.$height.'" data-setup="{}">'; // poster="'.$featimg.'" data-setup="{}"
 					$embed .= "\n\t\t".'<source src="' . $a . '" type="video/'.$ext.'">';
 
-					if( isset($meta['sec_id']) && !empty($meta['sec_id']) ) {
+					if( isset($meta['sec_id']) && !empty($meta['sec_id']) && $meta['sec_id'] != $meta['id'] ) {
 						$b = wp_get_attachment_url($meta['sec_id']);
 						$ext2 = pathinfo( $b, PATHINFO_EXTENSION );
 						$ext2 = $ext2 == 'ogv' ? 'ogg' : $ext2;
@@ -96,8 +102,9 @@ class featured_video_plus {
 					$youtube['logo'] 	= isset($options['youtube']['logo']) 	? $options['youtube']['logo'] 	: 1;
 					$youtube['rel'] 	= isset($options['youtube']['rel']) 	? $options['youtube']['rel'] 	: 1;
 					$youtube['fs'] 		= isset($options['youtube']['fs']) 		? $options['youtube']['fs'] 	: 1;
+					$youtube['wmode'] 	= isset($options['youtube']['wmode']) && $options['youtube']['wmode'] != 'auto' ? '&wmode='.$options['youtube']['wmode'] : '';
 
-					$src = 'http://www.youtube.com/embed/'.$meta['id'].'?theme='.$youtube['theme'].'&color='.$youtube['color'].'&showinfo='.$youtube['info'].'&modestbranding='.$youtube['logo'].'&origin='.esc_attr(home_url()).'&rel='.$youtube['rel'].'&fs='.$youtube['fs'].'&start='.$meta['attr'].$autoplay;
+					$src = 'http://www.youtube.com/embed/'.$meta['id'].'?theme='.$youtube['theme'].$youtube['wmode'].'&color='.$youtube['color'].'&showinfo='.$youtube['info'].'&modestbranding='.$youtube['logo'].'&origin='.esc_attr(home_url()).'&rel='.$youtube['rel'].'&fs='.$youtube['fs'].'&start='.$meta['time'].$autoplay;
 					$embed = "\n\t" . '<iframe width="'.$width.'" height="'.$height.'" src="'.$src.'" type="text/html" frameborder="0"></iframe>' . "\n";
 					break;
 
@@ -110,7 +117,7 @@ class featured_video_plus {
 					$dm['syndication'] 	= isset($options['dailymotion']['syndication']) ? 	$options['dailymotion']['syndication'] 	: '';
 					$dm['synd']			= !empty($dm['syndication']) 					? 	'&syndication='.$dm['syndication']		: '';
 
-					$dm['src'] = 'http://www.dailymotion.com/embed/video/'.$meta['id'].'?logo='.$dm['logo'].'&hideInfos='.$dm['hideinfo'].'&foreground=%23'.$dm['foreground'].'&highlight=%23'.$dm['highlight'].'&background=%23'.$dm['background'].$dm['synd'].'&start='.$meta['attr'].$autoplay;
+					$dm['src'] = 'http://www.dailymotion.com/embed/video/'.$meta['id'].'?logo='.$dm['logo'].'&hideInfos='.$dm['hideinfo'].'&foreground=%23'.$dm['foreground'].'&highlight=%23'.$dm['highlight'].'&background=%23'.$dm['background'].$dm['synd'].'&start='.$meta['time'].$autoplay;
 					$embed = "\n" . '<iframe width="'.$width.'" height="'.$height.'" src="'.$dm['src'].'" frameborder="0"></iframe>' . "\n";
 					break;
 
@@ -182,13 +189,21 @@ class featured_video_plus {
 	 * @param string $meta_key which meta_key to look for
 	 * @param string $meta_value which meta_value to look for
 	 */
-	function get_post_by_custom_meta($meta_key, $meta_value) {
+	function get_post_by_custom_meta($meta_key, $meta_value = null) {
 		global $wpdb;
-		$prepared = $wpdb->prepare(
-						"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key=%s AND meta_value=%s;",
-						$meta_key, $meta_value
-					);
-		return $wpdb->get_var( $prepared );
+		if( $meta_value !== null ) {
+			$prepared = $wpdb->prepare(
+							"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key=%s AND meta_value=%s LIMIT 1",
+							$meta_key, $meta_value
+						);
+			return $wpdb->get_var( $prepared );
+		} else {
+			$prepared = $wpdb->prepare(
+							"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key=%s",
+							$meta_key
+						);
+			return $wpdb->get_col( $prepared );
+		}
 	}
 
 	/**
