@@ -59,7 +59,7 @@ The plugin is ready to go. Now edit your posts and add video links to the "Featu
 
 == Changelog ==
 = 1.5: 2013-03-22 =
-* __AJAX__ified the Featured Video box - just like Featured Images
+* __AJAX__-ified the Featured Video box - just like Featured Images
 * Added options for a) disabling VideoJS JS/CSS, b) enabling VideoJS CDN and c) YouTube `wmode`
 * Plugin no longer breaks WP image editor ([*](http://wordpress.org/support/topic/breaks-image-scaling-shows-nan))
 
