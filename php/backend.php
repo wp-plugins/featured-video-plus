@@ -3,7 +3,7 @@
  * Class containing functions required WordPress administration panels. Metabox on post/page edit views and options section under settings->media.
  *
  * @author ahoereth
- * @version 2013/01/09
+ * @version 2013/03/27
  * @see ../featured_video_plus.php
  * @see featured_video_plus in general.php
  * @since 1.0
@@ -59,7 +59,7 @@ class featured_video_plus_backend {
 		}
 
 		// just required on post.php
-		if($hook_suffix == 'post.php' && isset($_GET['post']) ) {
+		if( ($hook_suffix == 'post.php' && isset($_GET['post'])) || $hook_suffix == 'post-new.php' ) {
 			wp_enqueue_script( 'jquery.autosize', FVP_URL . 'js/jquery.autosize-min.js', array( 'jquery' ), FVP_VERSION );
 			wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend-min.js', array( 'jquery','jquery.autosize' ), FVP_VERSION ); 	// production
 			//wp_enqueue_script( 'fvp_backend', FVP_URL . 'js/backend.js', array( 'jquery','jquery.autosize'), FVP_VERSION ); 		// development
@@ -75,7 +75,7 @@ class featured_video_plus_backend {
 			) );
 		}
 
-		if( ($hook_suffix == 'options-media.php') || ($hook_suffix == 'post.php' && isset($_GET['post'])) )
+		if( $hook_suffix == 'options-media.php' || (($hook_suffix == 'post.php' && isset($_GET['post'])) || $hook_suffix == 'post-new.php') )
 			wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend-min.css', array(), FVP_VERSION ); 	// production
 			//wp_enqueue_style( 'fvp_backend', FVP_URL . 'css/backend.css', array(), FVP_VERSION ); 		// development
 	}
@@ -218,16 +218,15 @@ class featured_video_plus_backend {
 		);
 		$meta = $this->save($post);
 
+		$img = _wp_post_thumbnail_html( get_post_thumbnail_id($post['id']), $post['id'] );
+
 		if(isset($meta['id'])) {
 			if( has_post_video($post['id']) )
 				$video = get_the_post_video( $post['id'], array(256,144) );
 
-			if( has_post_thumbnail($post['id']) )
-				$img   = _wp_post_thumbnail_html( get_post_thumbnail_id($post['id']), $post['id'] );
-
 			echo json_encode(array( 'typ' => 'updated', 'valid' => $meta['valid'], 'video' => $video, 'img' => $img ));
 		} else
-			echo json_encode(array( 'typ' => 'removed' ));
+			echo json_encode(array( 'typ' => 'removed', 'img' => $img ));
 		die();
 	}
 
