@@ -10,15 +10,21 @@
 
 
   /**
-   * Remove the link wrapping featured images on index pages
+   * Remove the link wrapping featured images on index pages and the
+   * possibile repetition of .post-thumbnail-classes.
    */
   function unwrap() {
-    $('.has-post-video a.post-thumbnail>.featured-video-plus,' +
-      '.has-post-video a.post-thumbnail>.fvp-dynamic,' +
-      '.has-post-video a.post-thumbnail>.fvp-overlay,' +
-      '.has-post-video a.post-thumbnail>.mejs-video,' +
-      '.has-post-video a.post-thumbnail>.wp-video'
+    // Remove links around videos.
+    $('.has-post-video a>.featured-video-plus,' +
+      '.has-post-video a>.fvp-dynamic,' +
+      '.has-post-video a>.fvp-overlay,' +
+      '.has-post-video a>.wp-video,' +
+      '.has-post-video a>.wp-video-shortcode'
     ).unwrap();
+
+    // Remove wrapped .post-thumbnail-classes
+    $('.has-post-video .post-thumbnail>.post-thumbnail')
+      .removeClass('post-thumbnail');
   }
 
 
@@ -105,18 +111,19 @@
     triggerPlayLoad();
 
     $.post(fvpdata.ajaxurl, {
-      'action': 'fvp_get_embed',
-      'nonce' : fvpdata.nonce,
-      'id'    : id
-    }, function(data){
-      if (data.success) {
-        $self.replaceWith(data.html);
+      'action'    : 'fvp_get_embed',
+      'fvp_nonce' : fvpdata.nonce,
+      'id'        : id
+    }, function(response){
+      if (response.success) {
+        var $parent = $self.parent();
+        $self.replaceWith(response.data);
 
-        // Initialize mediaelement.js player for the new videos.
-        $('.wp-audio-shortcode, .wp-video-shortcode').mediaelementplayer();
-
-        // Autosize them if required.
+        // Initialize mediaelement.js, autosize and unwrap the new videos.
+        $parent.find('.wp-audio-shortcode, .wp-video-shortcode')
+          .mediaelementplayer();
         fitVids();
+        unwrap();
       }
 
       triggerPlayLoad();
@@ -149,15 +156,15 @@
     // Check if the result is already cached
     if (0 === $cache.html().length) {
       $.post(fvpdata.ajaxurl, {
-          'action': 'fvp_get_embed',
-          'nonce' : fvpdata.nonce,
-          'id'    : id
-      }, function(data) {
-        if (data.success) {
+          'action'    : 'fvp_get_embed',
+          'fvp_nonce' : fvpdata.nonce,
+          'id'        : id
+      }, function(response) {
+        if (response.success) {
           // cache the result to not reload when opened again
-          $cache.html(data.html);
+          $cache.html(response.data);
 
-          $('#DOMWindow').html(data.html);
+          $('#DOMWindow').html(response.data);
           sizeLocal();
           $(window).trigger('scroll');
         }

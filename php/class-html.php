@@ -5,22 +5,14 @@ class FVP_HTML {
 	private static $name = 'fvphtml';
 
 
-	public  static $screens;
-
-
-	public static function static_init() {
-		static $initiated;
-		if ( $initiated ) {
-			return;
-		}
-
-		add_action( 'admin_enqueue_scripts', array( get_class(), 'enqueue' ) );
-
-		$initiated = true;
-	}
+	public static $screens;
 
 
 	public static function add_screens( $screens = array() ) {
+		if ( empty( self::$screens ) && ! empty( $screens ) ) {
+			add_action( 'admin_enqueue_scripts', array( get_class(), 'enqueue' ) );
+		}
+
 		self::$screens = array_merge( (array) self::$screens, (array) $screens );
 	}
 
@@ -32,7 +24,7 @@ class FVP_HTML {
 		}
 
 		// development or production?
-		$min = SCRIPT_DEBUG ? '' : '.min';
+		$min = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
 		wp_enqueue_style(
 			'fvphtml',
@@ -62,7 +54,7 @@ class FVP_HTML {
 			'fvphtml', // hook
 			'fvphtml', // variable name
 			array(
-				'prefix' => '.fvphtml',
+				'prefix' => '.fvphtml-',
 				'pointers' => self::get_pointers( $hook ),
 			)
 		);
@@ -540,6 +532,90 @@ class FVP_HTML {
 		return $pointers;
 	}
 
-}
 
-FVP_HTML::static_init();
+	/**
+	 * Translates a given array into a ready-to-use HTML class-attribute or its
+	 * value.
+	 *
+	 * @param  {assoc/array} $assoc     If assoc: classname/condition pairs.
+	 *                                  If array: classnames.
+	 * @param  {boolean} $attribute     If the classnames should be wrapped in a
+	 *                                  'class' attribute.
+	 * @param  {boolean} $leadingspace  If the result string should start with
+	 *                                  a space.
+	 * @param  {boolean} $trailingspace If the result string should end with a
+	 *                                  space.
+	 * @return {string}
+	 */
+	public static function class_names(
+		$assoc,
+		$attribute = false,
+		$leadingspace = false,
+		$trailingspace = false
+	) {
+		// Attribute opening and leading space.
+		$string  = $leadingspace ? ' ' : '';
+		$string .= $attribute ? 'class="' : '';
+
+		// Class list.
+		$classes = array();
+		foreach ( $assoc AS $key => $val ) {
+			if ( $val ) {
+				$classes[] = $key;
+			}
+		}
+		$string .= implode( ' ', $classes );
+
+		// Closing the attribute and trailing space.
+		$string .= $attribute ? '"' : '';
+		$string .= $trailingspace ? ' ' : '';
+
+		return $string;
+	}
+
+
+	/**
+	 * Translates a given array into a ready-to-use HTML style-attribute.
+	 *
+	 * @param  {assoc}   $assoc         Associative array of CSS property/value
+	 *                                  pairs or associative array of CSS
+	 *                                  properties WITH values as key and
+	 *                                  boolean conditions as value.
+	 * @param  {boolean} $attribute     If the resulting style string should be
+	 *                                  wrapped in a 'style' attribute.
+	 * @param  {boolean} $leadingspace  If the resulting string should start with
+	 *                                  a space.
+	 * @param  {boolean} $trailingspace If the resulting string should end with a
+	 *                                  space.
+	 * @return {string}
+	 */
+	public static function inline_styles(
+		$assoc,
+		$attribute = false,
+		$leadingspace = false,
+		$trailingspace = false
+	) {
+		// Attribute opening and leading space.
+		$string  = $leadingspace ? ' ' : '';
+		$string .= $attribute ? 'style="' : '';
+
+		// Style body.
+		foreach ( $assoc AS $key => $val ) {
+			if ( is_bool( $val ) && true === $val ) {
+				// $key is a property: value pair and $val a boolean condition
+				$string .= esc_attr( $key ) . '; ';
+			} else {
+				// $key is a property and $val a value
+				$string .= sprintf( '%s: %s; ', esc_attr( $key ), esc_attr( $val ) );
+			}
+		}
+
+		// Closing the attribute and trailing space.
+		$string .= $attribute ? '"' : '';
+		$string .= $trailingspace ? ' ' : '';
+
+		return $string;
+	}
+
+
+}
