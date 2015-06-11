@@ -200,6 +200,14 @@ switch ( $version ) {
 			$this->save( array( 'id' => $id, 'fvp_video' => $meta['full'] ) );
 		}
 
+
+	case '2.0.3':
+		$options['single_replace'] = false;
+		foreach( $options['conditions'] AS $key => $value ) {
+			$options['conditions'][ $key ] = (bool) $value;
+		}
+
+
 	default:
 		update_option( 'fvp-settings', $options );
 		update_option( 'fvp-version', FVP_VERSION );
