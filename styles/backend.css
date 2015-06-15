@@ -2,7 +2,8 @@
   background: transparent fixed no-repeat center center;
 }
 #featured-video-plus-box .fvp-current-video,
-#featured-video-plus-box iframe {
+#featured-video-plus-box .fvp-current-video iframe,
+#featured-video-plus-box .fvp-current-video video {
   width: 256px;
   height: auto;
   margin-bottom: 5px;
@@ -52,7 +53,4 @@
   position: absolute;
   top: 4px;
   right: 4px;
-}
-#postimagediv #remove-post-thumbnail {
-  display: none !important;
 }
