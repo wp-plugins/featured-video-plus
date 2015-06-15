@@ -32,11 +32,12 @@ class FVP_Backend extends Featured_Video_Plus {
 		            array( $this, 'plugin_action_link' ),
 		            10, 2 );
 		add_filter( 'admin_post_thumbnail_html',
-		            array( $this, 'featured_image_notice' ),
+		            array( $this, 'featured_image_box' ),
 		            10, 2 );
 
 		if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
 			add_action( 'wp_ajax_fvp_save', array( $this, 'metabox_save_ajax' ) );
+			add_action( 'wp_ajax_fvp_remove_img', array( $this, 'ajax_remove_img' ) );
 			add_action( 'wp_ajax_fvp_get_embed', array( $this, 'ajax_get_embed' ) );
 			add_action( 'wp_ajax_nopriv_fvp_get_embed',
 			            array( $this, 'ajax_get_embed' ) );
@@ -56,7 +57,7 @@ class FVP_Backend extends Featured_Video_Plus {
 			return;
 		}
 
-		$min = defined( SCRIPT_DEBUG ) && SCRIPT_DEBUG ? '' : '.min';
+		$min = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
 		// jQuery script for automatically resizing <textarea>s.
 		wp_register_script(
@@ -81,9 +82,10 @@ class FVP_Backend extends Featured_Video_Plus {
 
 		// Some variables required in JS context.
 		$upload_dir = wp_upload_dir();
-		wp_localize_script( 'fvp-post', 'fvp_post', array(
+		wp_localize_script( 'fvp-post', 'fvpPost', array(
 			'wp_upload_dir' => $upload_dir['baseurl'],
-			'loading_gif'   => get_admin_url( null, 'images/loading.gif' )
+			'loading_gif'   => get_admin_url( null, 'images/loading.gif' ),
+			'debug'         => defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG
 		));
 
 		// General backend style.
@@ -147,7 +149,7 @@ class FVP_Backend extends Featured_Video_Plus {
 		// Current featured video.
 		$content .= sprintf(
 			'<div class="fvp-current-video"%s>%s</div>',
-			$this->inline_styles( array(
+			FVP_HTML::inline_styles( array(
 				'height: 0px' => ! $has_post_video,
 			), true, true ),
 			get_the_post_video( $post_id, array( 256, 144 ) )
@@ -174,7 +176,7 @@ class FVP_Backend extends Featured_Video_Plus {
 			'<a href="#" class="fvp-video-choose">' .
 				'<span class="fvp-media-icon"%s></span>' .
 			'</a>',
-			$this->inline_styles(array(
+			FVP_HTML::inline_styles( array(
 				'background-image' => sprintf(
 					'url(%s/wp-admin/images/media-button.png)',
 					get_bloginfo( 'wpurl' )
@@ -241,7 +243,6 @@ class FVP_Backend extends Featured_Video_Plus {
 
 		$post = array(
 			'id'        => $post_id,
-			'fvp_nonce' => ! empty( $_POST['fvp_nonce'] ) ? $_POST['fvp_nonce'] : '',
 			'fvp_video' => ! empty( $_POST['fvp_video'] ) ? $_POST['fvp_video'] : ''
 		);
 
@@ -258,13 +259,12 @@ class FVP_Backend extends Featured_Video_Plus {
 	 * @uses $this->save()
 	 */
 	public function metabox_save_ajax() {
-		if ( ! self::has_valid_nonce( $_POST ) ) {
-			return false;
+		if ( ! self::has_valid_nonce( $_POST ) || empty( $_POST['id'] ) ) {
+			wp_send_json_error();
 		}
 
 		$post = array(
-			'id' => $_POST['id'],
-			'fvp_nonce' => ! empty( $_POST['fvp_nonce'] ) ? $_POST['fvp_nonce'] : '',
+			'id' => (int) $_POST['id'],
 			'fvp_video' => ! empty( $_POST['fvp_video'] ) ? $_POST['fvp_video'] : '',
 			'fvp_set_featimg' =>
 				! empty( $_POST['fvp_set_featimg'] ) ? $_POST['fvp_set_featimg'] : '',
@@ -280,22 +280,22 @@ class FVP_Backend extends Featured_Video_Plus {
 
 		if ( has_post_video( $post['id'] ) ) {
 			$video = get_the_post_video( $post['id'], array( 256, 144 ) );
-			$response = json_encode( array(
+			$response = array(
 				'type'     => 'update',
 				'valid'    => isset( $meta['valid'] ) ? $meta['valid'] : null,
 				'video'    => $video,
 				'img'      => $img,
 				'provider' => isset( $meta['provider'] ) ? $meta['provider'] : null
-			) );
+			);
 		} else {
-			$response = json_encode( array(
+			$response = array(
 				'task'  => 'remove',
 				'valid' => isset( $meta['valid'] ) ? $meta['valid'] : null,
 				'img'   => $img,
-			) );
+			);
 		}
 
-		exit( $response );
+		wp_send_json_success( $response );
 	}
 
 
@@ -314,13 +314,15 @@ class FVP_Backend extends Featured_Video_Plus {
 		// parse video url
 		$url = ! empty( $post['fvp_video'] ) ? trim( $post['fvp_video'] ) : '';
 
-		// has featured image AND url did not change or is and was empty
-		if (
-			! $post['fvp_set_featimg'] && (
-				( ! empty( $meta['full'] ) && $url == $meta['full'] ) ||
-				(   empty( $meta['full'] ) && empty( $url ) )
-			)
-		) {
+		// Was this a force-auto-set featimg action?
+		$setimg = ! empty ( $post['fvp_set_featimg'] ) && $post['fvp_set_featimg'];
+
+		// Don't do anything if we are not setting the featured image AND the
+		// URL is empty AND did not change.
+		if ( ! $setimg && (
+			( ! empty( $meta['full'] ) && $url == $meta['full'] ) ||
+			(   empty( $meta['full'] ) && empty( $url ) )
+		) ) {
 			return false;
 		}
 
@@ -339,8 +341,16 @@ class FVP_Backend extends Featured_Video_Plus {
 			$data['filename'] = 'Featured Video Plus Placeholder';
 		}
 
-		$img = $this->set_featured_image( $post['id'], $data );
+		// Should we set the featured image?
+		if ( $setimg || (
+			! has_post_thumbnail( $post['id'] ) &&
+			( empty( $meta['noimg'] ) || $meta['noimg'] )
+		) ) {
+			$img = $this->set_featured_image( $post['id'], $data );
+			$data['noimg'] = false;
+		}
 
+		// Create the final _fvp_video meta data.
 		$meta = array_merge(
 			array(
 				'full'     => $url,
@@ -512,37 +522,66 @@ class FVP_Backend extends Featured_Video_Plus {
 	 * @since 1.7.0
 	 */
 	public function ajax_get_embed() {
-		header( 'Content-Type: application/json' );
-
-		// bad request
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'featured-video-plus-nonce' ) ) {
-			$response = json_encode( array(
-				'success' => false,
-				'html'    => 'invalid nonce',
-			) );
-
-			// return featured video as requested
-		} elseif ( has_post_video( $_POST['id'] ) ) {
-			$meta  = get_post_meta( $_POST['id'], '_fvp_video', true );
-			$video = get_the_post_video( $_POST['id'] );
-
-			$response = json_encode( array(
-				'success' => 'true',
-				'html'    => $video,
-				'id'      => ! empty( $meta['id'] ) ? $meta['id'] : null,
-			) );
-
-			// no video, return featured image
-		} else {
-			$image = get_the_post_thumbnail( $_POST['id'] );
-
-			$response = json_encode(array(
-				'success' => 'false',
-				'html'    => $image,
-			));
+		if ( ! self::has_valid_nonce( $_POST ) || empty( $_POST['id'] ) ) {
+			wp_send_json_error();
 		}
 
-		exit( $response );
+		// Parse post id.
+		$id = (int) $_POST['id'];
+
+		if ( has_post_video( $id ) ) {
+			// Return featured video html as requested.
+			$video = get_the_post_video( $id );
+			wp_send_json_success( $video );
+		} else {
+			// Post has no video, return featured image html.
+			$image = get_the_post_thumbnail( $id );
+			wp_send_json_success( $image );
+		}
+	}
+
+
+	/**
+	 * Some people might not want to have a featured image because of whatever
+	 * reason. We notify them about the probable incompatibility and offer the
+	 * 'auto set' link to set the featured image using the plugin (video
+	 * thumbnail or placeholder) but do not want to auto set it on every post
+	 * save automatically if they explicitly removed it before. This function
+	 * therefor is triggered by an AJAX request when removing a featured image
+	 * which was previously set by the plugin.
+	 */
+	public function ajax_remove_img() {
+		if ( ! self::has_valid_nonce( $_POST ) || empty( $_POST['id'] ) ) {
+			wp_send_json_error();
+		}
+
+		// Retrieve post id and check user capabilities.
+		$id = (int) $_POST['id'];
+		if ( ! current_user_can( 'edit_post', $id ) ) {
+			wp_send_json_error();
+		}
+
+		// Retrieve featured video metadata.
+		$meta = get_post_meta( $id, '_fvp_video', true );
+
+		// Delete the image from database if feasible. This also again tries to
+		// remove the link of the featured image to the post although it will
+		// probably already be unlinked by WordPress internal functionality.
+		$this->delete_featured_image( $id, $meta );
+
+		// Remember that we do not want to set a featured image automatically for
+		// this post.
+		$meta['noimg'] = true;
+
+		// Remove now unnecessary image information from the video meta.
+		$meta['img'] = null;
+
+		// Save meta.
+		update_post_meta( $id, '_fvp_video', $meta );
+
+		// Respond to the client.
+		$html = _wp_post_thumbnail_html( get_post_thumbnail_id( $id ), $id );
+		wp_send_json_success( $html );
 	}
 
 
@@ -616,23 +655,29 @@ class FVP_Backend extends Featured_Video_Plus {
 	 * @param  {int}    $post_id
 	 * @return {string}
 	 */
-	public function featured_image_notice( $content, $post_id ) {
-		if ( has_post_thumbnail( $post_id ) || ! has_post_video( $post_id ) ) {
+	public function featured_image_box( $content, $post_id ) {
+		if ( ! has_post_video( $post_id ) ) {
+			// Has no featured video so the plugin does not interfere.
 			return $content;
 		}
 
-		$notice  = '<span class="fvp-notice">';
-		$notice .= __(
-			'Featured Videos require a Featured Image for automatic replacement.',
-			'featured-video-plus'
-		);
-		$notice .= '&nbsp;<a href="#" class="fvp-set-featimg hidden">' . __(
-			'Auto set',
-			'featured-video-plus'
-		) . '</a>';
-		$notice .= '</span>';
+		if ( has_post_thumbnail( $post_id ) ) {
+			// Has featured video and featured image.
+			return $content . sprintf(
+				'<p class="hidden"><a href="#" class="fvp-remove-image">%s</a></p>',
+				esc_html__( 'Remove featured image' )
+			);
+		}
 
-		return $notice . $content;
+		// Has featured video but not featured image.
+		return sprintf(
+			'<p class="fvp-notice">%s <a href="#" class="fvp-set-image hide-if-no-js">%s</a></p>',
+			esc_html__(
+				'Featured Videos require a Featured Image for automatic replacement.',
+				'featured-video-plus'
+			),
+			esc_html__( 'Auto set', 'featured-video-plus' )
+		) . $content;
 	}
 
 

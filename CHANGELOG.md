@@ -1,6 +1,23 @@
 # Changelog #
 
-## 2.0.0: 2015-06-01 ##
+## 2.1.1: 2015-06-xx ##
+* Fix play and loading featured image overlay for some themes ([*](https://wordpress.org/support/topic/play-icon-missing)).
+* Fix broken `remove featured image` link. ([*](https://wordpress.org/support/topic/cant-remove-featured-image-2),  [*](https://wordpress.org/support/topic/version-210-conflict-with-wp-featured-image), [*](https://wordpress.org/support/topic/fvp-not-working-after-210-update))
+
+## 2.1.0: 2015-06-11 ##
+* Display options are now chained using OR - if one of them holds, the replace mode is used.
+* Added `always use replace mode when viewing single posts and pages` option, was implicitly true since 2.0.0. ([*](https://wordpress.org/support/topic/featured-video-overrides-featured-image)).
+* Fixed undefined warnings when using `WP_DEBUG` ([*](https://wordpress.org/support/topic/debug-error-16)).
+* Fixed double-wrapped .post-thumbnails ([*](https://wordpress.org/support/topic/video-no-longer-appearing)).
+* Lazy loading a video no longer breaks other videos. ([*](https://wordpress.org/support/topic/blank-screen-after-the-video-is-played))
+
+## 2.0.3: 2015-06-01 ##
+* Remove usage of PHP short array syntax in order to support PHP versions lower than 5.4 ([*](https://wordpress.org/support/topic/bug-on-version-201))
+
+## 2.0.2: 2015-06-01 ##
+* Fixed undefined warnings when saving posts with fresh featured videos.
+
+## 2.0.0 & 2.0.1: 2015-06-01 ##
 * __Requires WordPress 3.7 or higher now!__ This reflects versions of WordPress which are "officially" [supported](https://codex.wordpress.org/Supported_Versions). The plugin will from now on try to stick to supporting all versions listed there.
 * Major code refactor which results in many bugs scrubbed.
 * Support for raw embed codes and [all WordPress core media providers](https://codex.wordpress.org/Embeds#Okay.2C_So_What_Sites_Can_I_Embed_From.3F).
