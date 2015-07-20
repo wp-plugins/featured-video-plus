@@ -10,7 +10,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.7
 Tested up to: 4.2.2
-Stable tag: 2.0.0
+Stable tag: 2.2.0
 
 Add Featured Videos to your posts and pages. Works like magic with most themes which use Featured Images. Local Media, YouTube, Vimeo and many more.
 
@@ -27,7 +27,8 @@ There are three ways to get the videos onto your page:
 2. insert the `[featured-video-plus]`-__Shortcode__ in your posts or
 3. manually make use of the __PHP-functions__ in your theme's source files.
 
-> Sadly many themes do not follow the WordPress standards and implement their own fancy functions for displaying featured images - check out the [FAQ](https://wordpress.org/plugins/featured-video-plus/faq/). Another common problem are sliders - in general: Videos do not like sliders at all.
+> <strong>Theme compatibility</strong><br>
+> Sadly many themes do not follow the WordPress standards and implement their own fancy functions for displaying featured images - those very likely break this plugin. Check out the [FAQ](https://wordpress.org/plugins/featured-video-plus/faq/). Another common problem are sliders: Videos, in general, do not like sliders at all.
 
 See the plugin in action on [yrnxt.com](http://yrnxt.com/wordpress/featured-video-plus/). There is a button in the sidebar to switch between the different featured video display modes: [Automatic](http://yrnxt.com/wordpress/featured-video-plus/?setfvpmode=replace), [lazy](http://yrnxt.com/wordpress/featured-video-plus/?setfvpmode=dynamic) and [overlay](http://yrnxt.com/wordpress/featured-video-plus/?setfvpmode=overlay).
 
@@ -35,8 +36,8 @@ Besides **Local Videos** you can use videos from a whole lot of external provide
 
 After installing the plugin check your site's *Media Settings* (`Settings -> Media` in the administration interface): The plugin adds quite some little helper options there. Change to lazy or overlay mode, tweak video sizing, individualize the look of the most prominent providers' video players and turn on autoplay or video looping. By default videos try to dynamically fit their parent containers width and adjust their size responsively.
 
-= Support =
-I do read all support questions in the [forums](https://wordpress.org/support/plugin/featured-video-plus) but cannot reply to all of them. The plugin is an unpaid side project and full support would require more time than I can invest for free for over 10k active installs. If you really need help, consider [buying me a cookie](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=AD8UKMQW2DMM6) - best way to attract my attention and to support future enhancements.
+> <strong>Support</strong><br>
+> I do read all support questions in the [forums](https://wordpress.org/support/plugin/featured-video-plus) but cannot reply to all of them. The plugin is an unpaid side project and full support would require more time than I can invest for free for over 10k active installs. If you really need help, consider [buying me a cookie](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=AD8UKMQW2DMM6) - best way to attract my attention and to support future enhancements.
 
 
 
@@ -104,16 +105,40 @@ Yes, please! Check out the public [Featured Video Plus Translation Project](http
 
 
 
-== Upgrade Notice ==
-
-= 2.0.0 =
-Only upgrade when using WordPress 3.7 or higher! Big refactor with support for more video providers.
-
-
-
 == Changelog ==
 
-= 2.0.0: 2015-06-01 =
+= 2.2.0: 2015-07-20 =
+* Shortcodes can now be used as featured content (e.g. `[gallery]`).
+* Added fine tuned autoplay options.
+* New option for hiding YouTube video annotations. ([*](https://wordpress.org/support/topic/add-feature-to-hide-youtube-screen-annotation))
+* Expose a JS function to manually re-initialize the plugin's JS behavior like responsive sizing and overlays. Specifically interesting when using FVP in combination with a infinite scroll plugin. ([*](https://wordpress.org/support/topic/open-video-overlay-when-featured-image-is-clicked-in-loop))
+* Fetch high quality thumbnails for YouTube and Dailymotion. ([*](https://wordpress.org/support/topic/featured-image-size-42))
+* Fix bug which suppressed the removal of foreign featured images. ([*](https://wordpress.org/support/topic/cannot-remove-featured-image-if-a-featured-video-is-set))
+* Fix 'undefined function exif_imagetype' error. ([*](https://wordpress.org/support/topic/cant-add-featured-video-1), [*](https://wordpress.org/support/topic/infinite-spinning-wheel-all-previous-videos-not-working-anymore), [*](https://wordpress.org/support/topic/error-message-444))
+* Implement a workaround for a bug with iframes in Google Chrome, see [[0](https://code.google.com/p/chromium/issues/detail?id=395533)], [[1](https://code.google.com/p/chromium/issues/detail?id=395791)]. ([*](https://wordpress.org/support/topic/found-a-huge-critical-bug-videos-vanish-after-using-back))
+* Fix bug which resulted in a invisible video playing in the background when using autoplay and overlay mode. ([*](https://wordpress.org/support/topic/video-overlay-with-autoplay-causes-two-videos-to-play))
+
+= 2.1.2: 2015-06-16 =
+* Fix bug which resulted in missing featured images when a post did not have a featured video. ([*](https://wordpress.org/support/topic/cookie-send-to-you-and-video-yes-image-no), [*](https://wordpress.org/support/topic/version-221-featured-image-not-diplayed))
+
+= 2.1.1: 2015-06-15 =
+* Fix play and loading featured image overlay for some themes. ([*](https://wordpress.org/support/topic/play-icon-missing))
+* Fix broken `remove featured image` link. ([*](https://wordpress.org/support/topic/cant-remove-featured-image-2),  [*](https://wordpress.org/support/topic/version-210-conflict-with-wp-featured-image), [*](https://wordpress.org/support/topic/fvp-not-working-after-210-update))
+
+= 2.1.0: 2015-06-11 =
+* Display options are now chained using OR - if one of them holds, the replace mode is used.
+* Added `always use replace mode when viewing single posts and pages` option, was implicitly true since 2.0.0. ([*](https://wordpress.org/support/topic/featured-video-overrides-featured-image))
+* Fixed undefined warnings when using `WP_DEBUG`. ([*](https://wordpress.org/support/topic/debug-error-16))
+* Fixed double-wrapped .post-thumbnails. ([*](https://wordpress.org/support/topic/video-no-longer-appearing))
+* Lazy loading a video no longer breaks other videos. ([*](https://wordpress.org/support/topic/blank-screen-after-the-video-is-played))
+
+= 2.0.3: 2015-06-01 =
+* Remove usage of PHP short array syntax in order to support PHP versions lower than 5.4 ([*](https://wordpress.org/support/topic/bug-on-version-201))
+
+= 2.0.2: 2015-06-01 =
+* Fixed undefined warnings when saving posts with fresh featured videos.
+
+= 2.0.0 & 2.0.1: 2015-06-01 =
 * __Requires WordPress 3.7 or higher now!__ This reflects versions of WordPress which are "officially" [supported](https://codex.wordpress.org/Supported_Versions). The plugin will from now on try to stick to supporting all versions listed there.
 * Major code refactor which results in many bugs scrubbed.
 * Support for raw embed codes and [all WordPress core media providers](https://codex.wordpress.org/Embeds#Okay.2C_So_What_Sites_Can_I_Embed_From.3F).

@@ -15,10 +15,11 @@ class FVP_Settings {
 
 	private static $page = 'media';
 
+
 	public function __construct() {
 		FVP_HTML::add_screens( self::$hook );
 
-		add_action( 'admin_init',             array( $this, 'settings_init' ) );
+		add_action( 'admin_init', array( $this, 'settings_init' ) );
 	}
 
 
@@ -158,6 +159,28 @@ class FVP_Settings {
 		echo FVP_HTML::description(
 			sprintf( esc_html__( "Automatic integration (options 1-3) requires your theme to make use of WordPress' native %sfeatured image%s functionality.", 'featured-video-plus' ), '<a href="http://codex.wordpress.org/Post_Thumbnails" target="_blank">', '</a>' )
 		);
+
+		// Always replace on is_single() ?
+		echo FVP_HTML::conditional(
+			'<br />' .
+			FVP_HTML::checkbox(
+				'fvp-settings[single_replace]',
+				sprintf(
+					esc_html__(
+						'Always use replace mode when viewing %ssingle%s posts and pages.',
+						'featured-video-plus'
+					),
+					'<a href="http://codex.wordpress.org/Function_Reference/is_single" target="_blank">',
+					'</a>'
+				),
+				'1',
+				! empty( $options['single_replace'] ) && $options['single_replace']
+			),
+			array(
+				'fvp-settings[mode]' => '!manual',
+				'hidden' => ! empty( $options['mode'] ) && 'manual' === $options['mode']
+			)
+		);
 	}
 
 
@@ -170,6 +193,10 @@ class FVP_Settings {
 		$options  = get_option( 'fvp-settings' );
 
 		$auto = ! empty( $options['mode'] ) && 'manual' !== $options['mode'];
+		$or = sprintf(
+			'<em>%s</em>',
+			strtoupper( esc_html__( 'or', 'featured-video-plus' ) )
+		);
 
 		echo FVP_HTML::conditional(
 			FVP_HTML::description(
@@ -182,32 +209,47 @@ class FVP_Settings {
 		);
 
 		echo FVP_HTML::conditional(
+			FVP_HTML::description(
+				esc_html__( 'Apply display mode...', 'featured-video-plus' )
+			) .
 			FVP_HTML::checkboxes(
 				'fvp-settings[conditions]',
 				array(
 					'single' => sprintf(
-						esc_html__( 'Only when viewing %ssingle%s posts and pages.', 'featured-video-plus' ),
+						esc_html__( 'when viewing %ssingle%s posts and pages %s', 'featured-video-plus' ),
 						'<a href="http://codex.wordpress.org/Function_Reference/is_single" target="_blank">',
-						'</a>'
+						'</a>',
+						$or
 					),
 					'home' => sprintf(
-						esc_html__( 'Only on the %spost index page%s.', 'featured-video-plus' ),
+						esc_html__( 'when on the %spost index page%s %s', 'featured-video-plus' ),
 						'<a href="http://codex.wordpress.org/Function_Reference/is_home" target="_blank">',
-						'</a>'
+						'</a>',
+						$or
 					),
 					'main_query' => sprintf(
-						esc_html__( 'Only inside the %smain query%s of each page.', 'featured-video-plus' ),
+						esc_html__( 'when inside the %smain query%s of each page %s', 'featured-video-plus' ),
 						'<a href="https://developer.wordpress.org/reference/functions/is_main_query/" target="_blank">',
-						'</a>'
+						'</a>',
+						$or
 					),
 					'sticky' => sprintf(
-						esc_html__( 'Only for %ssticky%s posts.', 'featured-video-plus' ),
+						esc_html__( 'when displaying %ssticky%s posts.', 'featured-video-plus' ),
+						'<a href="http://codex.wordpress.org/Function_Reference/is_sticky" target="_blank">',
+						'</a>'
+					),
+					'!sticky' => sprintf(
+						esc_html__( 'when displaying not %ssticky%s posts.', 'featured-video-plus' ),
 						'<a href="http://codex.wordpress.org/Function_Reference/is_sticky" target="_blank">',
 						'</a>'
 					)
 				),
 				! empty( $options['conditions'] ) ? $options['conditions'] : array()
-			),
+			) .
+			FVP_HTML::description( esc_html__(
+				'If none of the above options is selected the display mode will be applied whenever possible.',
+				'featured-video-plus'
+			) ),
 			array(
 				'fvp-settings[mode]' => '!manual',
 				'hidden' => ! $auto,
@@ -291,6 +333,7 @@ class FVP_Settings {
 	 */
 	public function arguments() {
 		$options     = get_option( 'fvp-settings' );
+		$autoplay    = ! empty( $options['autoplay'] ) ? $options['autoplay'] : array();
 		$args        = ! empty( $options['default_args'] ) ? $options['default_args'] : array();
 		$vimeo       = ! empty( $args['vimeo'] )       ? $args['vimeo'] : array();
 		$youtube     = ! empty( $args['youtube'] )     ? $args['youtube'] : array();
@@ -307,11 +350,29 @@ class FVP_Settings {
 				FVP_HTML::checkboxes(
 					'fvp-settings[default_args][general]',
 					array(
-						'autoplay' => esc_html__( 'Autoplay', 'featured-video-plus' ),
-						'loop'     => esc_html__( 'Loop', 'featured-video-plus' )
+						'loop'     => esc_html__( 'Loop', 'featured-video-plus' ),
 					),
 					! empty( $args['general'] ) ? $args['general'] : array()
 				),
+				FVP_HTML::radios(
+					'fvp-settings[autoplay][always]',
+					array(
+						'1' => esc_html__( 'Always autoplay.', 'featured-video-plus' ),
+						'0' => esc_html__( 'Autoplay when...', 'featured-video-plus' ),
+					),
+					! empty( $autoplay['always'] ) ? $autoplay['always'] : '0'
+				),
+				FVP_HTML::checkboxes(
+					'fvp-settings[autoplay]',
+					array(
+						'lazy' => esc_html__( '... lazy loading videos.', 'featured-video-plus' ),
+						'single' => sprintf(
+							esc_html__( '... viewing %ssingle%s posts and pages.', 'featured-video-plus' ),
+							'<a href="http://codex.wordpress.org/Function_Reference/is_single" target="_blank">', '</a>'
+						),
+					),
+					! empty( $autoplay ) ? $autoplay : array()
+				)
 			),
 
 			'vimeo' => array(
@@ -359,6 +420,10 @@ class FVP_Settings {
 							'label' => esc_html__( 'White highlight color', 'featured-video-plus' )
 						),
 						'modestbranding' => esc_html__( 'Hide YouTube logo', 'featured-video-plus' ),
+						'iv_load_policy' => array(
+							'value' => '3',
+							'label' => esc_html__( 'Hide annotations', 'featured-video-plus' )
+						),
 						'rel' => array(
 							'value' => '0',
 							'label' => esc_html__( 'Hide related videos', 'featured-video-plus' )
@@ -470,22 +535,28 @@ class FVP_Settings {
 		);
 
 		$datatypes = array(
-			'mode'      => '(replace|dynamic|overlay|manual)',
-			'conditions' =>  array(
-				'single'     => $patterns['digit'],
-				'home'       => $patterns['digit'],
-				'main_query' => $patterns['digit'],
-				'sticky'     => $patterns['digit'],
+			'mode' => '(replace|dynamic|overlay|manual)',
+			'single_replace' => 'BOOLEAN',
+			'conditions' => array(
+				'single'     => 'BOOLEAN',
+				'home'       => 'BOOLEAN',
+				'main_query' => 'BOOLEAN',
+				'sticky'     => 'BOOLEAN',
+				'!sticky'    => 'BOOLEAN',
 			),
 			'alignment' => '(left|center|right)',
 			'sizing' => array(
 				'responsive' => 'BOOLEAN',
 				'width'      => $patterns['number'],
 			),
+			'autoplay' => array(
+				'always' => 'BOOLEAN',
+				'lazy'   => 'BOOLEAN',
+				'single' => 'BOOLEAN',
+			),
 			'default_args' => array(
 				'general' => array(
-					'autoplay' => $patterns['digit'],
-					'loop'     => $patterns['digit'],
+					'loop' => $patterns['digit'],
 				),
 				'vimeo' => array(
 					'portrait' => $patterns['digit'],
@@ -497,6 +568,7 @@ class FVP_Settings {
 					'theme'          => $patterns['word'],
 					'color'          => $patterns['word'],
 					'modestbranding' => $patterns['digit'],
+					'iv_load_policy' => $patterns['digit'],
 					'fs'             => $patterns['digit'],
 					'rel'            => $patterns['digit'],
 					'showinfo'       => $patterns['digit'],
@@ -531,7 +603,7 @@ class FVP_Settings {
 				if ( ! empty( $nextleaf ) ) {
 					$validated[ $key ] = $nextleaf;
 				}
-			} elseif ( 'BOOLEAN' == $value ) {
+			} elseif ( 'BOOLEAN' === $value ) {
 				$validated[ $key ] = (bool) $src[ $key ];
 			} else {
 				preg_match( '/' . $value . '/i', $src[ $key ], $match );
