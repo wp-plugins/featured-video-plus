@@ -1,3 +1,5 @@
+var initFeaturedVideoPlus;
+
 (function($) {
   'use strict';
   /* global fvpdata */
@@ -7,6 +9,7 @@
   var playBg = 'url(\'' + fvpdata.playicon + '\')';
   var loadBg = 'url(\'' + fvpdata.loadicon + '\')';
   var bgState;
+  var cache = {};
 
 
   /**
@@ -151,18 +154,16 @@
 
     $('#DOMWindow').css({ backgroundImage: loadBg });
 
-    var $cache = $('#fvp-cache-' + id);
-
     // Check if the result is already cached
-    if (0 === $cache.html().length) {
+    if (! cache[id]) {
       $.post(fvpdata.ajaxurl, {
-          'action'    : 'fvp_get_embed',
-          'fvp_nonce' : fvpdata.nonce,
-          'id'        : id
+        'action'    : 'fvp_get_embed',
+        'fvp_nonce' : fvpdata.nonce,
+        'id'        : id
       }, function(response) {
         if (response.success) {
           // cache the result to not reload when opened again
-          $cache.html(response.data);
+          cache[id] = response.data;
 
           $('#DOMWindow').html(response.data);
           sizeLocal();
@@ -171,14 +172,13 @@
       });
     } else {
       // From cache
-      $('#DOMWindow').html( $cache.html() );
+      $('#DOMWindow').html( cache[id] );
       $(window).trigger('scroll');
     }
   }
 
 
-  // Initialization after DOM is completly loaded.
-  $(document).ready(function() {
+  initFeaturedVideoPlus = function() {
     // remove wrapping anchors
     // doing this twice with a 1 second delay to fix wrapped local video posters
     unwrap();
@@ -198,5 +198,18 @@
 
     // overlay click handler
     $('.fvp-overlay').click(overlayTrigger);
+  };
+
+  // Initialization after DOM is completly loaded.
+  $(document).ready(function() {
+    // Wordaround for chrome bug
+    // See https://code.google.com/p/chromium/issues/detail?id=395791
+    if (!! window.chrome) {
+      $('.featured-video-plus iframe').each(function() {
+        this.src = this.src;
+      });
+    }
+
+    initFeaturedVideoPlus();
   });
 })(jQuery);

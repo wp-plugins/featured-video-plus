@@ -333,6 +333,7 @@ class FVP_Settings {
 	 */
 	public function arguments() {
 		$options     = get_option( 'fvp-settings' );
+		$autoplay    = ! empty( $options['autoplay'] ) ? $options['autoplay'] : array();
 		$args        = ! empty( $options['default_args'] ) ? $options['default_args'] : array();
 		$vimeo       = ! empty( $args['vimeo'] )       ? $args['vimeo'] : array();
 		$youtube     = ! empty( $args['youtube'] )     ? $args['youtube'] : array();
@@ -349,11 +350,29 @@ class FVP_Settings {
 				FVP_HTML::checkboxes(
 					'fvp-settings[default_args][general]',
 					array(
-						'autoplay' => esc_html__( 'Autoplay', 'featured-video-plus' ),
-						'loop'     => esc_html__( 'Loop', 'featured-video-plus' )
+						'loop'     => esc_html__( 'Loop', 'featured-video-plus' ),
 					),
 					! empty( $args['general'] ) ? $args['general'] : array()
 				),
+				FVP_HTML::radios(
+					'fvp-settings[autoplay][always]',
+					array(
+						'1' => esc_html__( 'Always autoplay.', 'featured-video-plus' ),
+						'0' => esc_html__( 'Autoplay when...', 'featured-video-plus' ),
+					),
+					! empty( $autoplay['always'] ) ? $autoplay['always'] : '0'
+				),
+				FVP_HTML::checkboxes(
+					'fvp-settings[autoplay]',
+					array(
+						'lazy' => esc_html__( '... lazy loading videos.', 'featured-video-plus' ),
+						'single' => sprintf(
+							esc_html__( '... viewing %ssingle%s posts and pages.', 'featured-video-plus' ),
+							'<a href="http://codex.wordpress.org/Function_Reference/is_single" target="_blank">', '</a>'
+						),
+					),
+					! empty( $autoplay ) ? $autoplay : array()
+				)
 			),
 
 			'vimeo' => array(
@@ -401,6 +420,10 @@ class FVP_Settings {
 							'label' => esc_html__( 'White highlight color', 'featured-video-plus' )
 						),
 						'modestbranding' => esc_html__( 'Hide YouTube logo', 'featured-video-plus' ),
+						'iv_load_policy' => array(
+							'value' => '3',
+							'label' => esc_html__( 'Hide annotations', 'featured-video-plus' )
+						),
 						'rel' => array(
 							'value' => '0',
 							'label' => esc_html__( 'Hide related videos', 'featured-video-plus' )
@@ -526,10 +549,14 @@ class FVP_Settings {
 				'responsive' => 'BOOLEAN',
 				'width'      => $patterns['number'],
 			),
+			'autoplay' => array(
+				'always' => 'BOOLEAN',
+				'lazy'   => 'BOOLEAN',
+				'single' => 'BOOLEAN',
+			),
 			'default_args' => array(
 				'general' => array(
-					'autoplay' => $patterns['digit'],
-					'loop'     => $patterns['digit'],
+					'loop' => $patterns['digit'],
 				),
 				'vimeo' => array(
 					'portrait' => $patterns['digit'],
@@ -541,6 +568,7 @@ class FVP_Settings {
 					'theme'          => $patterns['word'],
 					'color'          => $patterns['word'],
 					'modestbranding' => $patterns['digit'],
+					'iv_load_policy' => $patterns['digit'],
 					'fs'             => $patterns['digit'],
 					'rel'            => $patterns['digit'],
 					'showinfo'       => $patterns['digit'],

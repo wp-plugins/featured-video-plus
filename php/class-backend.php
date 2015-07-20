@@ -329,7 +329,9 @@ class FVP_Backend extends Featured_Video_Plus {
 		// there was a video and we want to delete it
 		if ( ! empty( $meta['full'] ) && empty( $url ) ) {
 			delete_post_meta( $post['id'], '_fvp_video' );
-			$this->delete_featured_image( $post['id'], $meta );
+			if ( get_post_thumbnail_id( $post['id'] ) == $meta['img'] ) {
+				$this->delete_featured_image( $post['id'], $meta );
+			}
 			return false;
 		}
 
@@ -402,8 +404,18 @@ class FVP_Backend extends Featured_Video_Plus {
 				'author'      => ! empty( $raw->author_name )   ? $raw->author_name : null,
 				'description' => ! empty( $raw->description )   ? $raw->description : null,
 				'img_url'     => ! empty( $raw->thumbnail_url ) ? $raw->thumbnail_url : null,
-				'filename'    => ! empty( $raw->title ) ? sanitize_file_name( $raw->title ) : null,
+				'filename'    => ! empty( $raw->title ) ? $raw->title : null,
 			);
+
+			switch ( $provider ) {
+				case 'dailymotion':
+					$data['id'] = $this->oembed->get_video_id( $url );
+					$img_url = $this->oembed->get_thumbnail_url( $provider, $data['id'] );
+					if ( false !== $img_url ) {
+						$data['img_url'] = $img_url;
+					}
+					break;
+			}
 		}
 
 		$data['parameters'] = $this->oembed->get_args( $url, $provider );
@@ -447,22 +459,33 @@ class FVP_Backend extends Featured_Video_Plus {
 		$img = self::get_post_by_custom_meta( '_fvp_image_url', $data['img_url'] );
 
 		if ( empty( $img ) ) {
-			$file = array(
-			  'name' => basename( $data['img_url'] ),
-			);
+			$file = array();
 
-			// Get external image
-			$file['tmp_name'] = download_url( $data['img_url'] );
-			if ( is_wp_error( $file['tmp_name'] ) ) {
-				return false;
+			// Handle YouTube max res image
+			if ( false !== strpos( $data['img_url'], 'hqdefault' ) ) {
+				$file['tmp_name'] = download_url( str_replace(
+					'hqdefault',
+					'maxresdefault',
+					$data['img_url']
+				) );
+			}
+
+			// Handle all others or try normal youtube thumb again on error.
+			if ( ! isset($file['tmp_name'] ) || is_wp_error( $file['tmp_name'] ) ) {
+				$file['tmp_name'] = download_url( $data['img_url'] );
+				if ( is_wp_error( $file['tmp_name'] ) ) {
+					return false;
+				}
 			}
 
 			// Insert into media library
-			$url_type = image_type_to_extension(
-				exif_imagetype( $file['tmp_name'] ),
+			$type = image_type_to_extension(
+				self::get_image_type( $file['tmp_name'] ),
 				false
 			);
-			$file['name'] = basename( $data['img_url'] . '.' . $url_type );
+			$title = ! empty( $data['title'] ) ?
+				$data['title'] : basename( $data['img_url'], $type );
+			$file['name'] = sanitize_file_name( $title . '.' . $type );
 			$img = media_handle_sideload( $file, $post_id );
 
 			// save picture source url in post meta
@@ -488,12 +511,14 @@ class FVP_Backend extends Featured_Video_Plus {
 	 *                         the FVP image attachment ID.
 	 */
 	private function delete_featured_image( $post_id, $meta ) {
+		// Remove featured image.
+		delete_post_meta( $post_id, '_thumbnail_id' );
+
+		// If the image is a featured video thumbnail we might want to remove it
+		// completely from the media library.
 		if ( empty( $meta['img'] ) ) {
 			return false;
 		}
-
-		// Unset featured image if it is from this video
-		delete_post_meta( $post_id, '_thumbnail_id', $meta['img'] );
 
 		// Check if other posts use the image, if not we can delete it completely
 		$other = self::get_post_by_custom_meta( '_thumbnail_id', $meta['img'] );
@@ -736,6 +761,25 @@ class FVP_Backend extends Featured_Video_Plus {
 		}
 
 		return true;
+	}
+
+
+	/**
+	 * exif_imagetype function is not available on all systems - fallback wrapper.
+	 *
+	 * @param  {string} $filename
+	 * @return Image mime type.
+	 */
+	private static function get_image_type( $filename ) {
+		if ( function_exists( 'exif_imagetype' ) ) {
+			return exif_imagetype( $filename );
+		} else {
+			$img = getimagesize( $filename );
+			if ( !empty( $img[2] ) ) {
+				return image_type_to_mime_type( $img[2] );
+			}
+		}
+		return false;
 	}
 
 
