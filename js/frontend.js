@@ -1,3 +1,5 @@
+var initFeaturedVideoPlus;
+
 (function($) {
   'use strict';
   /* global fvpdata */
@@ -7,18 +9,29 @@
   var playBg = 'url(\'' + fvpdata.playicon + '\')';
   var loadBg = 'url(\'' + fvpdata.loadicon + '\')';
   var bgState;
+  var cache = {};
+  var initTimeout;
 
 
   /**
-   * Remove the link wrapping featured images on index pages
+   * Remove the link wrapping featured images on index pages and the
+   * possibile repetition of .post-thumbnail-classes.
    */
   function unwrap() {
-    $('.has-post-video a.post-thumbnail>.featured-video-plus,' +
-      '.has-post-video a.post-thumbnail>.fvp-dynamic,' +
-      '.has-post-video a.post-thumbnail>.fvp-overlay,' +
-      '.has-post-video a.post-thumbnail>.mejs-video,' +
-      '.has-post-video a.post-thumbnail>.wp-video'
+    // Remove links around videos.
+    $('.has-post-video a>.featured-video-plus,' +
+      '.has-post-video a>.fvp-dynamic,' +
+      '.has-post-video a>.fvp-overlay,' +
+      '.has-post-video a>.wp-video,' +
+      '.has-post-video a>.wp-video-shortcode'
     ).unwrap();
+
+    // Remove wrapped .post-thumbnail-classes
+    $('.has-post-video .post-thumbnail>.post-thumbnail')
+      .removeClass('post-thumbnail');
+
+    // There might still be some empty .post-thumbnail links to be removed.
+    $('a.post-thumbnail:empty').not('.fvp-dynamic, .fvp-overlay').remove();
   }
 
 
@@ -57,7 +70,11 @@
     // preload images
     if (bgState === undefined) {
       [fvpdata.playicon, fvpdata.loadicon].forEach(function(val) {
-        $('body').append( $('<img/>', { src: val }).hide() );
+        $('body').append($('<img/>', {
+          src: val,
+          alt: 'preload image',
+          style: 'display: none;'
+        }));
       });
     }
 
@@ -71,22 +88,21 @@
    * Handle mouseover and mouseout events.
    */
   function hover(event) {
-    var $elem = $(event.currentTarget);
-    var $img = $elem.children('img');
+    var $img = $(event.currentTarget).children('img');
 
-    if (0 === $elem.find('.fvp-loader').length) {
-      $img.animate({ opacity: fvpdata.opacity });
-      $elem
-        .css({ position: 'relative' })
-        .prepend(
-          $loader
-            .css({
-              height    :  $img.height(),
-              width     :  $img.width(),
-              marginTop : -$img.height()/2,
-              marginLeft: -$img.width()/2
-            })
-        );
+    // Is the overlay displayed currently?
+    if (0 === $img.siblings('.fvp-loader').length) {
+
+      // Copy classes and css styles onto the play icon overlay.
+      $loader.addClass($img.attr('class')).css({
+        height: $img.height(),
+        width: $img.width(),
+        margin: $img.css('margin')
+      });
+
+      // Set icon to play icon, fade out image and insert overlay.
+      $loader.css({ backgroundImage: (bgState = playBg) });
+      $img.animate({ opacity: fvpdata.opacity }).before($loader);
     } else if (bgState !== loadBg) {
       $img.animate({ opacity: 1 });
       $loader.remove();
@@ -105,18 +121,19 @@
     triggerPlayLoad();
 
     $.post(fvpdata.ajaxurl, {
-      'action': 'fvp_get_embed',
-      'nonce' : fvpdata.nonce,
-      'id'    : id
-    }, function(data){
-      if (data.success) {
-        $self.replaceWith(data.html);
+      'action'    : 'fvp_get_embed',
+      'fvp_nonce' : fvpdata.nonce,
+      'id'        : id
+    }, function(response){
+      if (response.success) {
+        var $parent = $self.parent();
+        $self.replaceWith(response.data);
 
-        // Initialize mediaelement.js player for the new videos.
-        $('.wp-audio-shortcode, .wp-video-shortcode').mediaelementplayer();
-
-        // Autosize them if required.
+        // Initialize mediaelement.js, autosize and unwrap the new videos.
+        $parent.find('.wp-audio-shortcode, .wp-video-shortcode')
+          .mediaelementplayer();
         fitVids();
+        unwrap();
       }
 
       triggerPlayLoad();
@@ -144,34 +161,35 @@
 
     $('#DOMWindow').css({ backgroundImage: loadBg });
 
-    var $cache = $('#fvp-cache-' + id);
-
     // Check if the result is already cached
-    if (0 === $cache.html().length) {
+    if (! cache[id]) {
       $.post(fvpdata.ajaxurl, {
-          'action': 'fvp_get_embed',
-          'nonce' : fvpdata.nonce,
-          'id'    : id
-      }, function(data) {
-        if (data.success) {
+        'action'    : 'fvp_get_embed',
+        'fvp_nonce' : fvpdata.nonce,
+        'id'        : id
+      }, function(response) {
+        if (response.success) {
           // cache the result to not reload when opened again
-          $cache.html(data.html);
+          cache[id] = response.data;
 
-          $('#DOMWindow').html(data.html);
+          $('#DOMWindow').html(response.data);
           sizeLocal();
           $(window).trigger('scroll');
         }
       });
     } else {
       // From cache
-      $('#DOMWindow').html( $cache.html() );
+      $('#DOMWindow').html( cache[id] );
+      sizeLocal();
       $(window).trigger('scroll');
     }
   }
 
 
-  // Initialization after DOM is completly loaded.
-  $(document).ready(function() {
+  /**
+   * Initialize the plugins JS functionality.
+   */
+  function init() {
     // remove wrapping anchors
     // doing this twice with a 1 second delay to fix wrapped local video posters
     unwrap();
@@ -183,7 +201,9 @@
     sizeLocal();
 
     // add hover effect and preload icons
-    $('.fvp-overlay, .fvp-dynamic').hover(hover, hover);
+    $('.fvp-overlay, .fvp-dynamic')
+      .off('mouseenter').on('mouseenter', hover)
+      .off('mouseleave').on('mouseleave', hover);
     triggerPlayLoad();
 
     // on-demand video insertion click handler
@@ -191,5 +211,28 @@
 
     // overlay click handler
     $('.fvp-overlay').click(overlayTrigger);
+  }
+
+
+  /**
+   * Debounced version of the init function.
+   */
+  initFeaturedVideoPlus = function() {
+    clearTimeout(initTimeout);
+    initTimeout = setTimeout(init, 50);
+  };
+
+
+  // Initialization after DOM is completly loaded.
+  $(document).ready(function() {
+    // Wordaround for chrome bug
+    // See https://code.google.com/p/chromium/issues/detail?id=395791
+    if (!! window.chrome) {
+      $('.featured-video-plus iframe').each(function() {
+        this.src = this.src;
+      });
+    }
+
+    initFeaturedVideoPlus();
   });
 })(jQuery);

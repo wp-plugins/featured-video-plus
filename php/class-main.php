@@ -1,4 +1,8 @@
 <?php
+
+// dependencies
+require_once( FVP_DIR . 'php/class-html.php' );
+
 /**
  * Class containing all functions needed on front- AND backend. Functions only needed on one of those are found in distinct classes.
  *
@@ -39,9 +43,7 @@ class Featured_Video_Plus {
 		$general = ! empty( $defaults['general'] ) ? $defaults['general'] : array();
 
 		// Autoplay option. Suppressed when viewing admin.
-		$general['autoplay'] =
-			( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ! is_admin() ) &&
-			! empty( $general['autoplay'] ) && $general['autoplay'] ? '1' : null;
+		$general['autoplay'] = self::parse_autoplay_options($options) ? true : null;
 
 		// Responsive scaling option. Not used when viewing the admin screen.
 		$responsive =
@@ -82,7 +84,7 @@ class Featured_Video_Plus {
 				break;
 
 			case 'raw':
-				$embed = $meta['full'];
+				$embed = do_shortcode( $meta['full'] );
 				break;
 
 			default:
@@ -114,7 +116,7 @@ class Featured_Video_Plus {
 		$embed = sprintf(
 			"<!-- Featured Video Plus v%s -->\n<div%s>%s</div>\n\n",
 			FVP_VERSION,
-			$this->class_names($classnames, true, true),
+			FVP_HTML::class_names($classnames, true, true),
 			$embed
 		);
 
@@ -187,6 +189,48 @@ class Featured_Video_Plus {
 
 
 	/**
+	 * Parse the autoplay options to determine if video should or should not
+	 * autoplay.
+	 *
+	 * @param  {assoic} $options
+	 * @return {bool}
+	 */
+	private static function parse_autoplay_options( $options ) {
+		if ( empty( $options['autoplay'] ) ) {
+			return false;
+		}
+
+		if (
+			! empty( $options['autoplay']['always'] ) &&
+			$options['autoplay']['always']
+		) {
+			return true;
+		};
+
+		$mode = ! empty( $options['mode'] ) ? $options['mode'] : null;
+		//$islazy = 'overlay' === $mode || 'dynamic' === $mode;
+		$isajax = defined( 'DOING_AJAX' ) && DOING_AJAX;
+
+		if (
+			! empty( $options['autoplay']['lazy'] ) &&
+			$options['autoplay']['lazy'] &&
+			$isajax
+		) {
+			return true;
+		}
+
+		if (
+			! empty( $options['autoplay']['single'] ) &&
+			$options['autoplay']['single'] &&
+			is_single()
+		) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Gets a post by an meta_key meta_value pair. Returns it's post_id.
 	 *
 	 * @see http://codex.wordpress.org/Class_Reference/wpdb
@@ -229,76 +273,5 @@ class Featured_Video_Plus {
 			FVP_DIR . 'lng/',
 			FVP_NAME . '/lng/'
 		);
-	}
-
-
-	/**
-	 *
-	 * @param  {assoc}   $assoc
-	 * @param  {boolean} $attribute
-	 * @param  {boolean} $leadingspace
-	 * @param  {boolean} $trailingspace
-	 * @return {string}
-	 */
-	protected function class_names(
-		$assoc,
-		$attribute = false,
-		$leadingspace = false,
-		$trailingspace = false
-	) {
-		// Attribute opening and leading space.
-		$string  = $leadingspace ? ' ' : '';
-		$string .= $attribute ? 'class="' : '';
-
-		// Class list.
-		$classes = array();
-		foreach ( $assoc AS $key => $val ) {
-			if ( $val ) {
-				$classes[] = $key;
-			}
-		}
-		$string .= implode( ' ', $classes );
-
-		// Closing the attribute and trailing space.
-		$string .= $attribute ? '"' : '';
-		$string .= $trailingspace ? ' ' : '';
-
-		return $string;
-	}
-
-	/**
-	 *
-	 * @param  {assoc}   $assoc
-	 * @param  {boolean} $attribute
-	 * @param  {boolean} $leadingspace
-	 * @param  {boolean} $trailingspace
-	 * @return {string}
-	 */
-	protected function inline_styles(
-		$assoc,
-		$attribute = false,
-		$leadingspace = false,
-		$trailingspace = false
-	) {
-		// Attribute opening and leading space.
-		$string  = $leadingspace ? ' ' : '';
-		$string .= $attribute ? 'style="' : '';
-
-		// Style body.
-		foreach ( $assoc AS $key => $val ) {
-			if ( is_bool( $val ) && true === $val ) {
-				// $key is a property: value pair and $val a boolean condition
-				$string .= esc_attr( $key ) . '; ';
-			} else {
-				// $key is a property and $val a value
-				$string .= sprintf( '%s: %s; ', esc_attr( $key ), esc_attr( $val ) );
-			}
-		}
-
-		// Closing the attribute and trailing space.
-		$string .= $attribute ? '"' : '';
-		$string .= $trailingspace ? ' ' : '';
-
-		return $string;
 	}
 }

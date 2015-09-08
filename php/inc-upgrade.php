@@ -200,6 +200,27 @@ switch ( $version ) {
 			$this->save( array( 'id' => $id, 'fvp_video' => $meta['full'] ) );
 		}
 
+
+	case '2.0.3':
+		$options['single_replace'] = false;
+		foreach( $options['conditions'] AS $key => $value ) {
+			$options['conditions'][ $key ] = (bool) $value;
+		}
+
+	case '2.1.2':
+		$options['autoplay'] = array(
+			'lazy' => true
+		);
+
+		if (
+			! empty( $options['default_args']['general']['autoplay'] ) &&
+			$options['default_args']['general']['autoplay']
+		) {
+			$options['autoplay']['always'] = true;
+		}
+		unset( $options['default_args']['general']['autoplay'] );
+
+
 	default:
 		update_option( 'fvp-settings', $options );
 		update_option( 'fvp-version', FVP_VERSION );

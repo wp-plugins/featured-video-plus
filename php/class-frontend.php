@@ -37,7 +37,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 	 * @since 1.0.0
 	 */
 	public function enqueue() {
-		$min = SCRIPT_DEBUG ? '' : '.min';
+		$min = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
 		$options = get_option( 'fvp-settings' );
 		$mode = ! empty( $options['mode'] ) ? $options['mode'] : null;
@@ -46,7 +46,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 			'jquery.fitvids',
 			FVP_URL . "js/jquery.fitvids$min.js",
 			array( 'jquery' ),
-			'1.1',
+			'master-2015-08',
 			false
 		);
 
@@ -79,7 +79,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 		}
 
 		// Is modal functionality required?
-		if ( 'overlay' === $options['mode'] ) {
+		if ( 'overlay' === $mode ) {
 			$jsdeps[] = 'jquery.domwindow';
 		}
 
@@ -94,7 +94,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 		// some context for JS
 		wp_localize_script( 'fvp-frontend', 'fvpdata', array(
 			'ajaxurl'  => admin_url( 'admin-ajax.php' ),
-			'nonce'    => wp_create_nonce( 'featured-video-plus-nonce' ),
+			'nonce'    => wp_create_nonce( FVP_NAME . FVP_VERSION ),
 			'fitvids'  => ! empty( $options['sizing']['responsive'] ) &&
 			              $options['sizing']['responsive'],
 			'dynamic'  => 'dynamic' === $mode,
@@ -141,38 +141,53 @@ class FVP_Frontend extends Featured_Video_Plus {
 		$options = get_option( 'fvp-settings' );
 		$mode = ! empty( $options['mode'] ) ? $options['mode'] : null;
 		$conditions = ! empty( $options['conditions'] ) ?
-			$options['conditions'] : array();
+			$options['conditions'] : null;
+		$single_replace = is_single() &&
+			! empty( $options['single_replace'] ) && $options['single_replace'];
 
-		$conditions_hold = true;
-		foreach ( $conditions AS $fun => $value ) {
-			if ( $value && function_exists( 'is_' . $fun ) ) {
-				$conditions_hold = $conditions_hold && call_user_func( 'is_' . $fun );
-			}
-		}
-
+		// Don't show a video.
 		if ( ( 'manual' === $mode ) ||
-		     ( ! $conditions_hold ) ||
+		     ( ! self::check_conditions( $conditions ) ) ||
 		     ( ! has_post_video( $post_id ) )
 		) {
 			return $html;
+		}
 
-		} elseif ( 'dynamic' === $options['mode'] && ! is_single() ) {
-			return sprintf(
-				'<a href="#" data-id="%1$s" class="fvp-dynamic post-thumbnail">%2$s</a>',
-				$post_id,
-				$html
-			);
 
-		} elseif ( 'overlay' === $options['mode'] && ! is_single() ) {
+		// Playicon with onload JavaScript for initalizing FVP JS functionality
+		// which has to be done from here because of infinite scroll plugins.
+		$onload = '<img class="playicon onload" ' .
+		            'src="'. FVP_URL . 'img/playicon.png" ' .
+		            'alt="Featured Video Play Icon" ' .
+		            'onload="(function() {' .
+		              "('initFeaturedVideoPlus' in this) && ".
+		              "('function' === typeof initFeaturedVideoPlus) && ".
+		              "initFeaturedVideoPlus();" .
+		            '})();" ' .
+		          '/>';
+
+		// Show the video on-click - lazy load.
+		if ( 'dynamic' === $mode && ! $single_replace ) {
 			return sprintf(
-				'<a href="#" data-id="%1$s" class="fvp-overlay post-thumbnail">%2$s</a>' .
-				'<div id="fvp-cache-%1$s" style="display: none;"></div>',
+				'<a href="#" data-id="%s" class="fvp-dynamic post-thumbnail">%s</a>%s',
 				$post_id,
-				$html
+				$html,
+				$onload
 			);
 		}
 
-		return get_the_post_video( $post_id, $size );
+		// Show the video on-click in an overlay.
+		if ( 'overlay' === $mode && ! $single_replace ) {
+			return sprintf(
+				'<a href="#" data-id="%s" class="fvp-overlay post-thumbnail">%s</a>%s',
+				$post_id,
+				$html,
+				$onload
+			);
+		}
+
+		// Replace the featured image with the video.
+		return get_the_post_video( $post_id, $size ) . $onload;
 	}
 
 
@@ -208,5 +223,35 @@ class FVP_Frontend extends Featured_Video_Plus {
 		if ( has_post_video() ) {
 			return get_the_post_video( null, array( $w, $h ) );
 		}
+	}
+
+
+	/**
+	 * Check a given set of display conditions if one or more of them hold. If
+	 * an empty set is given, return true.
+	 *
+	 * @param {assoc} $conditions
+	 * @return {bool}
+	 */
+	private static function check_conditions( $conditions ) {
+		if ( empty( $conditions ) ) {
+			return true;
+		}
+
+		$conditions_hold = false;
+		foreach ( $conditions AS $fun => $value ) {
+			$negate = false;
+			if ( '!' === $fun[0] ) {
+				$negate = true;
+				$fun = substr( $fun, 1 );
+			}
+
+			if ( $value && function_exists( 'is_' . $fun ) ) {
+				$call = call_user_func( 'is_' . $fun );
+				$conditions_hold = $conditions_hold || ( $negate ? ! $call : $call );
+			}
+		}
+
+		return $conditions_hold;
 	}
 }
