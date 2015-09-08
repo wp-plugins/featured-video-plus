@@ -10,6 +10,7 @@ var initFeaturedVideoPlus;
   var loadBg = 'url(\'' + fvpdata.loadicon + '\')';
   var bgState;
   var cache = {};
+  var initTimeout;
 
 
   /**
@@ -69,7 +70,11 @@ var initFeaturedVideoPlus;
     // preload images
     if (bgState === undefined) {
       [fvpdata.playicon, fvpdata.loadicon].forEach(function(val) {
-        $('body').append( $('<img/>', { src: val }).hide() );
+        $('body').append($('<img/>', {
+          src: val,
+          alt: 'preload image',
+          style: 'display: none;'
+        }));
       });
     }
 
@@ -87,6 +92,7 @@ var initFeaturedVideoPlus;
 
     // Is the overlay displayed currently?
     if (0 === $img.siblings('.fvp-loader').length) {
+
       // Copy classes and css styles onto the play icon overlay.
       $loader.addClass($img.attr('class')).css({
         height: $img.height(),
@@ -94,7 +100,8 @@ var initFeaturedVideoPlus;
         margin: $img.css('margin')
       });
 
-      // Fade out image and insert overlay.
+      // Set icon to play icon, fade out image and insert overlay.
+      $loader.css({ backgroundImage: (bgState = playBg) });
       $img.animate({ opacity: fvpdata.opacity }).before($loader);
     } else if (bgState !== loadBg) {
       $img.animate({ opacity: 1 });
@@ -173,12 +180,16 @@ var initFeaturedVideoPlus;
     } else {
       // From cache
       $('#DOMWindow').html( cache[id] );
+      sizeLocal();
       $(window).trigger('scroll');
     }
   }
 
 
-  initFeaturedVideoPlus = function() {
+  /**
+   * Initialize the plugins JS functionality.
+   */
+  function init() {
     // remove wrapping anchors
     // doing this twice with a 1 second delay to fix wrapped local video posters
     unwrap();
@@ -190,7 +201,9 @@ var initFeaturedVideoPlus;
     sizeLocal();
 
     // add hover effect and preload icons
-    $('.fvp-overlay, .fvp-dynamic').hover(hover, hover);
+    $('.fvp-overlay, .fvp-dynamic')
+      .off('mouseenter').on('mouseenter', hover)
+      .off('mouseleave').on('mouseleave', hover);
     triggerPlayLoad();
 
     // on-demand video insertion click handler
@@ -198,7 +211,17 @@ var initFeaturedVideoPlus;
 
     // overlay click handler
     $('.fvp-overlay').click(overlayTrigger);
+  }
+
+
+  /**
+   * Debounced version of the init function.
+   */
+  initFeaturedVideoPlus = function() {
+    clearTimeout(initTimeout);
+    initTimeout = setTimeout(init, 50);
   };
+
 
   // Initialization after DOM is completly loaded.
   $(document).ready(function() {

@@ -2,6 +2,10 @@
   width: auto !important;
   height: auto !important;
 }
+.featured-video-plus.fvp-responsive .wp-video video {
+  width: 100% !important;
+  height: auto !important;
+}
 .featured-video-plus.fvp-responsive .mejs-container {
   width: 100% !important;
   height: auto !important;
@@ -73,4 +77,7 @@
 }
 .featured-video-plus.fvp-responsive.fvp-spotify .fluid-width-video-wrapper {
   padding-top: 100% !important;
+}
+.onload.playicon {
+  display: none;
 }
