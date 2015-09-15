@@ -53,14 +53,32 @@
   height: auto;
   width: auto;
 }
-.fvp-overlay .fvp-loader,
-.fvp-dynamic .fvp-loader {
+.fvp-overlay .fvp-actionicon,
+.fvp-dynamic .fvp-actionicon {
   background: transparent no-repeat scroll center center;
   position: absolute;
   top: 0;
   left: 0;
   z-index: 999;
   pointer-events: none;
+  display: none;
+}
+.fvp-overlay .fvp-actionicon.play,
+.fvp-dynamic .fvp-actionicon.play {
+  display: block;
+  background-image: url('../img/playicon.png');
+}
+.fvp-overlay .fvp-actionicon.load,
+.fvp-dynamic .fvp-actionicon.load {
+  display: block;
+}
+.fvp-overlay .fvp-actionicon.load.w,
+.fvp-dynamic .fvp-actionicon.load.w {
+  background-image: url('../img/loadicon_w.gif');
+}
+.fvp-overlay .fvp-actionicon.load.b,
+.fvp-dynamic .fvp-actionicon.load.b {
+  background-image: url('../img/loadicon_b.gif');
 }
 #DOMWindow {
   background: transparent center center no-repeat;
@@ -68,6 +86,13 @@
   height: auto;
   margin: auto auto;
   overflow: hidden;
+  background-image: url('../img/loadicon_w.gif');
+}
+.fvp-onload {
+  display: none !important;
+  height: 0;
+  width: 0;
+  visibility: hidden;
 }
 .featured-video-plus .wp-video a:not(.post-thumbnail) {
   display: none;
@@ -77,7 +102,4 @@
 }
 .featured-video-plus.fvp-responsive.fvp-spotify .fluid-width-video-wrapper {
   padding-top: 100% !important;
-}
-.onload.playicon {
-  display: none;
 }
