@@ -6,9 +6,7 @@ require_once( FVP_DIR . 'php/class-main.php' );
 /**
  * Class containing frontend functionality.
  *
- * Enqueue scripts/styles, replace featured images by featured videos or
- * insert the ajax request handlers, add 'has-post-video' class and
- * register the [featured-video-plus] shortcode.
+ * Enqueue scripts and styles specific to the frontend.
  *
  * @since 1.0.0
  */
@@ -23,11 +21,6 @@ class FVP_Frontend extends Featured_Video_Plus {
 		parent::__construct();
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
-
-		add_filter( 'post_thumbnail_html', array( $this, 'filter_post_thumbnail' ), 99, 5 );
-		add_filter( 'post_class', array( $this, 'has_post_video_class' ) );
-
-		add_shortcode( 'featured-video-plus', array( $this, 'shortcode' ) );
 	}
 
 
@@ -37,7 +30,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 	 * @since 1.0.0
 	 */
 	public function enqueue() {
-		$min = SCRIPT_DEBUG ? '' : '.min';
+		$min = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
 		$options = get_option( 'fvp-settings' );
 		$mode = ! empty( $options['mode'] ) ? $options['mode'] : null;
@@ -46,7 +39,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 			'jquery.fitvids',
 			FVP_URL . "js/jquery.fitvids$min.js",
 			array( 'jquery' ),
-			'1.1',
+			'master-2015-08',
 			false
 		);
 
@@ -79,7 +72,7 @@ class FVP_Frontend extends Featured_Video_Plus {
 		}
 
 		// Is modal functionality required?
-		if ( 'overlay' === $options['mode'] ) {
+		if ( 'overlay' === $mode ) {
 			$jsdeps[] = 'jquery.domwindow';
 		}
 
@@ -94,15 +87,13 @@ class FVP_Frontend extends Featured_Video_Plus {
 		// some context for JS
 		wp_localize_script( 'fvp-frontend', 'fvpdata', array(
 			'ajaxurl'  => admin_url( 'admin-ajax.php' ),
-			'nonce'    => wp_create_nonce( 'featured-video-plus-nonce' ),
+			'nonce'    => wp_create_nonce( FVP_NAME . FVP_VERSION ),
 			'fitvids'  => ! empty( $options['sizing']['responsive'] ) &&
 			              $options['sizing']['responsive'],
 			'dynamic'  => 'dynamic' === $mode,
 			'overlay'  => 'overlay' === $mode,
 			'opacity'  => 0.75,
-			'loadicon' => 'overlay' === $mode ? FVP_URL . 'img/loadicon_w.gif' :
-			                                    FVP_URL . 'img/loadicon_b.gif',
-			'playicon' => FVP_URL . 'img/playicon.png',
+			'color'    => 'overlay' === $mode ? 'w' : 'b',
 			'width'    => ! empty( $options['sizing']['width'] ) ?
 				$options['sizing']['width'] : null
 		));
@@ -117,96 +108,4 @@ class FVP_Frontend extends Featured_Video_Plus {
 	}
 
 
-	/**
-	 * Display featured videos in place of featured images if a featured video is available and only if so desired by user.
-	 *
-	 * @see http://wordpress.stackexchange.com/a/41858
-	 * @since 1.0.0
-	 *
-	 * @param string $html featured image html, ready to echo
-	 * @param int $post_id id of target post
-	 * @param int $post_thumbnail_id id of featured image
-	 * @param string|array $size desired size of featured image / video
-	 * @param array $attr
-	 */
-	public function filter_post_thumbnail(
-		$html,
-		$post_id,
-		$post_thumbnail_id,
-		$size,
-		$attr
-	) {
-		$size = $this->get_size();
-
-		$options = get_option( 'fvp-settings' );
-		$mode = ! empty( $options['mode'] ) ? $options['mode'] : null;
-		$conditions = ! empty( $options['conditions'] ) ?
-			$options['conditions'] : array();
-
-		$conditions_hold = true;
-		foreach ( $conditions AS $fun => $value ) {
-			if ( $value && function_exists( 'is_' . $fun ) ) {
-				$conditions_hold = $conditions_hold && call_user_func( 'is_' . $fun );
-			}
-		}
-
-		if ( ( 'manual' === $mode ) ||
-		     ( ! $conditions_hold ) ||
-		     ( ! has_post_video( $post_id ) )
-		) {
-			return $html;
-
-		} elseif ( 'dynamic' === $options['mode'] && ! is_single() ) {
-			return sprintf(
-				'<a href="#" data-id="%1$s" class="fvp-dynamic post-thumbnail">%2$s</a>',
-				$post_id,
-				$html
-			);
-
-		} elseif ( 'overlay' === $options['mode'] && ! is_single() ) {
-			return sprintf(
-				'<a href="#" data-id="%1$s" class="fvp-overlay post-thumbnail">%2$s</a>' .
-				'<div id="fvp-cache-%1$s" style="display: none;"></div>',
-				$post_id,
-				$html
-			);
-		}
-
-		return get_the_post_video( $post_id, $size );
-	}
-
-
-	/**
-	 * Add a 'has-post-video' class to posts if appropriate.
-	 *
-	 * @since 2.0.0
-	 *
-	 * @param  {array} $classes Existing classes
-	 * @return {array}          Updated classes
-	 */
-	public function has_post_video_class( $classes ) {
-		global $post;
-
-		if ( has_post_video( $post->ID ) ) {
-			$classes[] = 'has-post-video';
-		}
-		return $classes;
-	}
-
-
-	/**
-	 * Shortcode for usage in post or page entries. Echos the post's featured video.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param array $atts can contain the width and/or height how the featured video should be displayed in px, optional
-	 */
-	public function shortcode($atts){
-		$w = isset($atts['width'])  ? $atts['width'] : '';
-		$h = isset($atts['height']) ? $atts['height'] : '';
-
-		if ( has_post_video() ) {
-			return get_the_post_video( null, array( $w, $h ) );
-		}
-	}
 }
